@@ -503,18 +503,6 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// Aボタン = 最初の選択肢
-document.getElementById('hw-a').addEventListener('click', () => {
-  if (ui.inputType === 'pause') { resolvePause(); return; }
-  if (ui.inputType === 'menu') { resolveMenu(0); return; }
-});
-// Bボタン = 最後の選択肢（キャンセル）
-document.getElementById('hw-b').addEventListener('click', () => {
-  if (ui.inputType === 'pause') { resolvePause(); return; }
-  if (ui.inputType === 'menu' && ui.menuChoices.length > 0) {
-    resolveMenu(ui.menuChoices.length - 1);
-  }
-});
 
 // ===================================================
 // ===== 文字タイルピッカー =====

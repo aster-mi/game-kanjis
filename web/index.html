@@ -9,79 +9,14 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="gb-wrapper">
-    <div class="gb-body">
-
-      <!-- Top bar -->
-      <div class="gb-top">
-        <div class="gb-power-indicator">
-          <span class="led"></span>
-          <span class="led-label">BATTERY</span>
-        </div>
-        <div class="gb-brand">Nintendo GAME BOY™</div>
-      </div>
-
-      <!-- Screen bezel -->
-      <div class="screen-bezel">
-        <div class="screen-label">DOT MATRIX WITH STEREO SOUND</div>
-        <div id="screen">
-
-          <!-- ゾーン1: グラフィックエリア（モンスター表示） -->
-          <div id="screen-graphics" class="hidden"></div>
-
-          <!-- ゾーン2: テキストエリア（ログ・説明文） -->
-          <div id="screen-text"></div>
-
-          <!-- ゾーン3: ボタンエリア（選択肢） -->
-          <div id="screen-buttons">
-            <div class="btn-area-divider"></div>
-            <div id="btn-container"></div>
-          </div>
-
-        </div>
-      </div>
-
-      <!-- Controls row -->
-      <div class="controls-row">
-        <!-- D-pad -->
-        <div class="dpad">
-          <div class="dpad-h"></div>
-          <div class="dpad-v"></div>
-          <div class="dpad-c"></div>
-        </div>
-
-        <!-- Select / Start -->
-        <div class="center-btns">
-          <div class="small-btn-wrap">
-            <div class="small-btn" id="hw-select"></div>
-            <div class="small-btn-label">SELECT</div>
-          </div>
-          <div class="small-btn-wrap">
-            <div class="small-btn" id="hw-start"></div>
-            <div class="small-btn-label">START</div>
-          </div>
-        </div>
-
-        <!-- A / B buttons -->
-        <div class="ab-btns">
-          <div class="btn btn-b" id="hw-b">B</div>
-          <div class="btn btn-a" id="hw-a">A</div>
-        </div>
-      </div>
-
-      <!-- Bottom area -->
-      <div class="gb-bottom">
-        <div class="kb-hint">← ボタンをタップして選択 →</div>
-        <div class="speaker">
-          <div class="speaker-row"><span></span><span></span><span></span><span></span><span></span><span></span></div>
-          <div class="speaker-row"><span></span><span></span><span></span><span></span><span></span><span></span></div>
-          <div class="speaker-row"><span></span><span></span><span></span><span></span><span></span><span></span></div>
-          <div class="speaker-row"><span></span><span></span><span></span><span></span><span></span><span></span></div>
-        </div>
-      </div>
-
-    </div><!-- .gb-body -->
-  </div><!-- .gb-wrapper -->
+  <div id="screen">
+    <div id="screen-graphics" class="hidden"></div>
+    <div id="screen-text"></div>
+    <div id="screen-buttons">
+      <div class="btn-area-divider"></div>
+      <div id="btn-container"></div>
+    </div>
+  </div>
 
   <script src="data.js"></script>
   <script src="game.js"></script>
