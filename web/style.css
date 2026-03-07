@@ -79,7 +79,7 @@ body {
    =========================== */
 #screen-graphics {
   flex-shrink: 0;
-  height: 220px;
+  height: clamp(120px, 28vh, 220px);
   overflow: hidden;
   position: relative;
   border-bottom: 1px solid var(--border);
@@ -96,7 +96,7 @@ body {
 }
 #screen-graphics.solo-mode .monster-card {
   width: 170px;
-  height: 190px;
+  height: min(190px, calc(clamp(120px, 28vh, 220px) - 24px));
 }
 
 /* ---- バトル表示 ---- */
