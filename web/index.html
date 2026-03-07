@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文字モンスター育成RPG</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="gb-wrapper">
+    <div class="gb-body">
+
+      <!-- Top bar -->
+      <div class="gb-top">
+        <div class="gb-power-indicator">
+          <span class="led"></span>
+          <span class="led-label">BATTERY</span>
+        </div>
+        <div class="gb-brand">Nintendo GAME BOY™</div>
+      </div>
+
+      <!-- Screen bezel -->
+      <div class="screen-bezel">
+        <div class="screen-label">DOT MATRIX WITH STEREO SOUND</div>
+        <div id="screen">
+          <div id="screen-output"></div>
+          <div id="screen-menu-area">
+            <div class="menu-divider"></div>
+            <div id="screen-menu"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls row -->
+      <div class="controls-row">
+        <!-- D-pad -->
+        <div class="dpad">
+          <div class="dpad-h"></div>
+          <div class="dpad-v"></div>
+          <div class="dpad-c"></div>
+        </div>
+
+        <!-- Select / Start -->
+        <div class="center-btns">
+          <div class="small-btn-wrap">
+            <div class="small-btn"></div>
+            <div class="small-btn-label">SELECT</div>
+          </div>
+          <div class="small-btn-wrap">
+            <div class="small-btn"></div>
+            <div class="small-btn-label">START</div>
+          </div>
+        </div>
+
+        <!-- A / B buttons -->
+        <div class="ab-btns">
+          <div class="btn btn-b">B</div>
+          <div class="btn btn-a">A</div>
+        </div>
+      </div>
+
+      <!-- Bottom area -->
+      <div class="gb-bottom">
+        <div class="kb-hint">← 数字キーで選択 &nbsp;|&nbsp; Enter で決定 →</div>
+        <div class="speaker">
+          <div class="speaker-row"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+          <div class="speaker-row"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+          <div class="speaker-row"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+          <div class="speaker-row"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+        </div>
+      </div>
+
+    </div><!-- .gb-body -->
+  </div><!-- .gb-wrapper -->
+
+  <script src="data.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
