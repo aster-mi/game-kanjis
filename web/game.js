@@ -338,16 +338,26 @@ function showSingleCard(monster, hp) {
   g.appendChild(makeMonsterCard(monster, hp, 'solo'));
 }
 
-// バトルグラフィック（敵 VS パーティ全員）
+// バトルグラフィック（味方:左 VS 敵:右）
 function showBattleGraphics(enemy, eHp, partyHps) {
   const g = $gfx();
   g.innerHTML = '';
   g.className = 'battle-mode';
 
-  // ─── 敵側 ───
+  // ─── 味方側（左）───
   const leftDiv = document.createElement('div');
   leftDiv.className = 'battle-left';
-  leftDiv.appendChild(makeMonsterCard(enemy, eHp, 'enemy'));
+  const cnt = G.battleParty.length;
+  const kanjiPx = cnt === 1 ? 38 : cnt === 2 ? 28 : 20;
+
+  for (let i = 0; i < cnt; i++) {
+    const hp   = Array.isArray(partyHps) ? partyHps[i] : G.battleParty[i].currentHp;
+    const card = makeMonsterCard(G.battleParty[i], hp, 'party');
+    const kj   = card.querySelector('.card-kanji');
+    if (kj) kj.style.fontSize = kanjiPx + 'px';
+    if (Array.isArray(partyHps) && partyHps[i] <= 0) card.classList.add('ko');
+    leftDiv.appendChild(card);
+  }
   g.appendChild(leftDiv);
 
   // ─── 中央 VS ───
@@ -362,21 +372,10 @@ function showBattleGraphics(enemy, eHp, partyHps) {
   center.appendChild(vs);
   g.appendChild(center);
 
-  // ─── 味方側 ───
+  // ─── 敵側（右）───
   const rightDiv = document.createElement('div');
   rightDiv.className = 'battle-right';
-  const cnt = G.battleParty.length;
-  // パーティ数に応じてカンジサイズ調整
-  const kanjiPx = cnt === 1 ? 38 : cnt === 2 ? 28 : 20;
-
-  for (let i = 0; i < cnt; i++) {
-    const hp   = Array.isArray(partyHps) ? partyHps[i] : G.battleParty[i].currentHp;
-    const card = makeMonsterCard(G.battleParty[i], hp, 'party');
-    const kj   = card.querySelector('.card-kanji');
-    if (kj) kj.style.fontSize = kanjiPx + 'px';
-    if (Array.isArray(partyHps) && partyHps[i] <= 0) card.classList.add('ko');
-    rightDiv.appendChild(card);
-  }
+  rightDiv.appendChild(makeMonsterCard(enemy, eHp, 'enemy'));
   g.appendChild(rightDiv);
 }
 
@@ -389,7 +388,19 @@ function showTitleGraphic() {
   const wrap = document.createElement('div');
   wrap.className = 'title-graphic';
 
-  const sample = sampleN(Object.values(G.allChars).filter(c => c.rarity === 'R'), 3);
+  // ゲームタイトル
+  const titleText = document.createElement('div');
+  titleText.className = 'title-text';
+  titleText.textContent = '文字モンスター';
+  wrap.appendChild(titleText);
+
+  const rpgLabel = document.createElement('div');
+  rpgLabel.className = 'title-rpg-label';
+  rpgLabel.textContent = '育　成　Ｒ　Ｐ　Ｇ';
+  wrap.appendChild(rpgLabel);
+
+  // サンプルモンスター（R〜SSRからランダム3体）
+  const sample = sampleN(Object.values(G.allChars).filter(c => c.rarity !== 'N'), 3);
   const row = document.createElement('div');
   row.className = 'title-kanji-row';
   for (const ch of sample) {
@@ -406,6 +417,28 @@ function showTitleGraphic() {
   wrap.appendChild(sub);
 
   g.appendChild(wrap);
+}
+
+// 冒険トラベル画面グラフィック
+function showTravelGraphics() {
+  const g = $gfx();
+  g.innerHTML = '';
+  g.className = 'travel-mode';
+
+  const row = document.createElement('div');
+  row.className = 'travel-party-row';
+  for (const m of G.battleParty) {
+    const mini = document.createElement('div');
+    mini.className = `travel-mini ${ELEM_CLASS[m.elem()] || 'elem-neutral'}`;
+    mini.textContent = m.name;
+    row.appendChild(mini);
+  }
+  g.appendChild(row);
+
+  const arrow = document.createElement('div');
+  arrow.className = 'travel-arrow';
+  arrow.textContent = '▶　▶　▶';
+  g.appendChild(arrow);
 }
 
 // モンスターカード生成
@@ -425,8 +458,10 @@ function makeMonsterCard(monster, hp, variant) {
     card.className = `monster-card solo-card rarity-${rar}`;
   }
 
-  // サイドラベル
-  const sideLabel = variant === 'enemy' ? 'てき' : variant === 'party' ? 'みかた' : '';
+  // サイドラベル（バトルカードはLvも表示）
+  const sideLabel = variant === 'enemy'  ? `てき  Lv${monster.level}`
+                  : variant === 'party'  ? `みかた Lv${monster.level}`
+                  : '';
   if (sideLabel) {
     const sl = document.createElement('div');
     sl.className = 'card-side-label';
@@ -473,11 +508,13 @@ function makeMonsterCard(monster, hp, variant) {
   hpWrap.appendChild(hpBar);
   card.appendChild(hpWrap);
 
-  // Lv
-  const nameDiv = document.createElement('div');
-  nameDiv.className = 'card-name';
-  nameDiv.textContent = `Lv${monster.level}`;
-  card.appendChild(nameDiv);
+  // ソロ表示のときだけ下部にLvを表示（バトルはサイドラベルに記載済み）
+  if (variant === 'solo') {
+    const nameDiv = document.createElement('div');
+    nameDiv.className = 'card-name';
+    nameDiv.textContent = `Lv${monster.level}`;
+    card.appendChild(nameDiv);
+  }
 
   return card;
 }
@@ -770,11 +807,20 @@ async function mainLoop() {
 // ===================================================
 // ===== 探索 =====
 // ===================================================
+const EXPLORE_MSGS = [
+  'ぼうけんに でかけた……',
+  'あらたな ちへ むかった……',
+  'みちなき みちを すすんだ……',
+  'てきを もとめて あるきだした……',
+  'せかいの はてを めざした……',
+];
 async function explore() {
   clearScreen();
+  showTravelGraphics();
   const names = G.battleParty.map(m => m.name).join('　');
+  const msg   = EXPLORE_MSGS[Math.floor(Math.random() * EXPLORE_MSGS.length)];
   print();
-  print(`  ${names} たちは ぼうけんに でかけた……`);
+  print(`  ${names} たちは ${msg}`, 'bright');
   print();
   await pause();
 

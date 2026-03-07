@@ -117,8 +117,11 @@ body {
 .battle-left {
   flex: 1.25;
   padding-right: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
-.battle-left .monster-card { height: 100%; }
+.battle-left .monster-card { flex: 1; }
 
 .battle-center {
   width: 34px;
@@ -154,11 +157,8 @@ body {
 .battle-right {
   flex: 1;
   padding-left: 5px;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
 }
-.battle-right .monster-card { flex: 1; }
+.battle-right .monster-card { height: 100%; }
 
 /* ---- タイトルグラフィック ---- */
 #screen-graphics.title-mode {
@@ -171,23 +171,37 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+}
+.title-text {
+  font-size: 20px;
+  color: var(--text);
+  letter-spacing: 3px;
+  text-shadow: 0 0 16px var(--accent), 0 0 32px rgba(74,128,255,0.25);
+}
+.title-rpg-label {
+  font-size: 9px;
+  color: var(--text-mid);
+  letter-spacing: 5px;
+  margin-top: -4px;
 }
 .title-kanji-row {
   display: flex;
   gap: 10px;
+  margin-top: 4px;
 }
 .title-kanji-item {
-  width: 48px; height: 48px;
-  border: 2px solid var(--border2);
+  width: 44px; height: 44px;
+  border: 1px solid currentColor;
   border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 26px;
-  background: var(--surface2);
+  font-size: 24px;
+  background: rgba(255,255,255,0.03);
   animation: title-float 2s ease-in-out infinite;
-  box-shadow: 0 0 10px rgba(74,128,255,0.2);
+  filter: drop-shadow(0 0 5px currentColor);
+  opacity: 0.85;
 }
 .title-kanji-item:nth-child(2) { animation-delay: 0.35s; }
 .title-kanji-item:nth-child(3) { animation-delay: 0.7s; }
@@ -196,9 +210,59 @@ body {
   50%       { transform: translateY(-5px); }
 }
 .title-sub {
-  font-size: 11px;
-  color: var(--text-mid);
+  font-size: 10px;
+  color: var(--text-dim);
   letter-spacing: 2px;
+}
+
+/* ---- 冒険トラベル画面 ---- */
+#screen-graphics.travel-mode {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background:
+    linear-gradient(to right,
+      rgba(20,40,80,0.5) 0%,
+      transparent 40%,
+      transparent 60%,
+      rgba(20,60,30,0.4) 100%
+    ),
+    var(--surface);
+}
+.travel-party-row {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+.travel-mini {
+  width: 54px; height: 54px;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  background: rgba(255,255,255,0.03);
+  animation: travel-bob 1.2s ease-in-out infinite;
+  filter: drop-shadow(0 0 6px currentColor);
+}
+.travel-mini:nth-child(2) { animation-delay: 0.25s; }
+.travel-mini:nth-child(3) { animation-delay: 0.5s; }
+@keyframes travel-bob {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-7px); }
+}
+.travel-arrow {
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 5px;
+  animation: travel-pulse 1.8s ease-in-out infinite;
+}
+@keyframes travel-pulse {
+  0%, 100% { opacity: 0.15; letter-spacing: 3px; }
+  50%       { opacity: 0.6;  letter-spacing: 7px; }
 }
 
 /* ===== モンスターカード ===== */
@@ -260,12 +324,13 @@ body {
 .monster-card.rarity-SR .card-badge { color: var(--rar-sr); border-color: var(--rar-sr); }
 .monster-card.rarity-SSR .card-badge { color: var(--rar-ssr); border-color: var(--rar-ssr); }
 
-/* サイドラベル（敵/味方） */
+/* サイドラベル（敵/味方 + Lv） */
 .card-side-label {
   position: absolute;
   top: 3px; left: 4px;
-  font-size: 7px;
+  font-size: 8px;
   color: var(--text-dim);
+  white-space: nowrap;
 }
 .enemy-card .card-side-label { color: var(--enemy-col); opacity: 0.7; }
 .party-card .card-side-label { color: var(--party-col); opacity: 0.7; }
@@ -398,11 +463,11 @@ body {
   color: var(--btn-info-txt);
   border: 1px solid var(--btn-info-brd);
   border-radius: 5px;
-  padding: 9px 8px;
+  padding: 13px 10px;
   text-align: center;
   cursor: pointer;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.3;
   display: flex;
   align-items: center;
