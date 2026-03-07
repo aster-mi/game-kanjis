@@ -51,8 +51,8 @@
 
 body {
   background: var(--bg);
-  height: 100dvh;
-  height: 100vh;
+  height: 100vh;        /* fallback */
+  height: 100dvh;       /* dvh が使える環境ではこちらが優先（スマホのアドレスバーを除いた実視野高） */
   overflow: hidden;
   display: flex;
   justify-content: center;
@@ -347,6 +347,7 @@ body {
    =========================== */
 #screen-text {
   flex: 1;
+  min-height: 0;        /* flex child が縮みきれなくなるのを防ぐ（iOS Safari 対策） */
   overflow-y: auto;
   overflow-x: hidden;
   color: var(--text);
@@ -377,6 +378,7 @@ body {
 
 #btn-container {
   padding: 6px 8px 8px;
+  padding-bottom: max(8px, env(safe-area-inset-bottom)); /* iOS ホームバー対策 */
   min-height: 24px;
 }
 
