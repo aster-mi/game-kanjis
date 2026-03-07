@@ -1,10 +1,14 @@
 'use strict';
-// ===== 文字モンスター育成RPG - Web版 =====
+// ===== 文字モンスター育成RPG - Web版 (グラフィック版) =====
 
 // ===== 定数 =====
 const ELEM_JP = {
   fire:'火', water:'水', thunder:'雷', ice:'氷',
   earth:'土', wind:'風', light:'光', dark:'闇', neutral:'無',
+};
+const ELEM_CLASS = {
+  fire:'elem-fire', water:'elem-water', thunder:'elem-thunder', ice:'elem-ice',
+  earth:'elem-earth', wind:'elem-wind', light:'elem-light', dark:'elem-dark', neutral:'elem-neutral',
 };
 const ELEM_ADV = {
   fire:    ['wind','ice'],
@@ -26,7 +30,7 @@ const POS_W = [
 ];
 const BATTLE_MAX = 3;
 const SLOTS      = 3;
-const SEP        = '─'.repeat(36);
+const SEP        = '─'.repeat(30);
 const SAVE_PFX   = 'kanji_rpg_slot_';
 
 // ===== ユーティリティ =====
@@ -63,12 +67,6 @@ function rarityWeights(totalLv) {
   return                    [20, 30, 35, 15];
 }
 
-function makeBar(cur, max, w = 10) {
-  const ratio = max > 0 ? Math.max(0, Math.min(1, cur / max)) : 0;
-  const f = Math.round(ratio * w);
-  return '[' + '■'.repeat(f) + '□'.repeat(w - f) + ']';
-}
-
 function elemMult(ae, de) {
   if ((ELEM_ADV[ae] || []).includes(de)) return 1.5;
   if ((ELEM_ADV[de] || []).includes(ae)) return 0.7;
@@ -77,9 +75,9 @@ function elemMult(ae, de) {
 
 // ===== ゲームデータ =====
 const G = {
-  allChars:      {},  // char -> charData
-  inspMap:       {},  // 'A|B' sorted -> output char
-  unlocked:      {},  // char -> charData
+  allChars:      {},
+  inspMap:       {},
+  unlocked:      {},
   monsters:      [],
   battleParty:   [],
   battleLog:     [],
@@ -90,9 +88,9 @@ function initData() {
   for (const [key, out] of Object.entries(INSP_MAP)) G.inspMap[key] = out;
 }
 
-const leader = () => G.battleParty[0] || null;
-const totalLv = () => G.battleParty.reduce((s, m) => s + m.level, 0) || 1;
-const unlock = chars => { for (const ch of chars) G.unlocked[ch.char] = ch; };
+const leader   = () => G.battleParty[0] || null;
+const totalLv  = () => G.battleParty.reduce((s, m) => s + m.level, 0) || 1;
+const unlock   = chars => { for (const ch of chars) G.unlocked[ch.char] = ch; };
 
 // ===== Monster クラス =====
 class Monster {
@@ -166,12 +164,6 @@ class Monster {
       msgs.push(`  ${this.name} は レベル ${this.level} に あがった！`);
     }
     return msgs;
-  }
-
-  hpBar(w = 10) { return makeBar(this.currentHp, this.maxHp, w); }
-
-  statusLine() {
-    return `【${this.name}】[${this.rarity()}] Lv${this.level}  HP ${this.hpBar()} ${this.currentHp}/${this.maxHp}`;
   }
 
   fullStatus() {
@@ -258,67 +250,204 @@ function slotInfo(slot) {
     const d = JSON.parse(raw);
     const li = d.battlePartyIndices[0];
     const lead = d.monsters[li];
-    return `${lead.name} Lv${lead.level}  なかま${d.monsters.length}体  ${d.savedAt}`;
+    return `${lead.name} Lv${lead.level}  ${d.monsters.length}体  ${d.savedAt}`;
   } catch(e) { return '(読み込みエラー)'; }
 }
 
+// ===================================================
 // ===== UI エンジン =====
+// ===================================================
 const ui = {
   inputResolver: null,
-  inputType: null,     // 'menu'|'pause'|'pick'
+  inputType: null,  // 'menu'|'pause'|'pick'
   menuChoices: [],
-  pickState: null,     // { pool, chosen, max, resolve }
-  numBuf: '',
-  numTimer: null,
 };
 
-function $out()  { return document.getElementById('screen-output'); }
-function $menu() { return document.getElementById('screen-menu'); }
+const $gfx  = () => document.getElementById('screen-graphics');
+const $text = () => document.getElementById('screen-text');
+const $btns = () => document.getElementById('btn-container');
 
+// ---------- テキスト出力 ----------
 function print(text = '', cls = '') {
   const div = document.createElement('div');
   div.className = 'screen-line' + (cls ? ' ' + cls : '');
   div.textContent = text;
-  $out().appendChild(div);
-  $out().scrollTop = $out().scrollHeight;
+  $text().appendChild(div);
+  $text().scrollTop = $text().scrollHeight;
 }
 
 function clearScreen() {
-  $out().innerHTML = '';
-  $menu().innerHTML = '';
-  ui.numBuf = '';
+  $text().innerHTML = '';
+  $btns().innerHTML = '';
+  hideGraphics();
 }
 
-function printSep() { print(SEP, 'separator'); }
-
+function printSep()    { print(SEP, 'separator'); }
 function printHeader() {
-  print('═'.repeat(36), 'dim');
-  print('   文字モンスター育成RPG', 'bright');
-  print('═'.repeat(36), 'dim');
+  print('文字モンスター育成RPG', 'bright');
+  print(SEP, 'separator');
 }
 
-// ===== メニュー (async) =====
+// ---------- グラフィックエリア ----------
+function hideGraphics() {
+  const g = $gfx();
+  g.innerHTML = '';
+  g.classList.add('hidden');
+}
+
+function showGraphics(leftM, leftHp, rightM, rightHp) {
+  const g = $gfx();
+  g.innerHTML = '';
+  g.classList.remove('hidden');
+
+  if (leftM)  g.appendChild(makeMonsterCard(leftM,  leftHp,  '敵'));
+  if (rightM) g.appendChild(makeMonsterCard(rightM, rightHp, '味方'));
+}
+
+function showSingleCard(monster, hp) {
+  const g = $gfx();
+  g.innerHTML = '';
+  g.classList.remove('hidden');
+  const card = makeMonsterCard(monster, hp, '');
+  card.style.maxWidth = '160px';
+  card.style.margin = '0 auto';
+  g.appendChild(card);
+}
+
+function makeMonsterCard(monster, hp, sideLabel) {
+  const rar  = monster.rarity();
+  const elem = monster.elem();
+  const curHp = (hp !== undefined && hp !== null) ? hp : monster.currentHp;
+  const maxHp = monster.maxHp;
+
+  const card = document.createElement('div');
+  card.className = `monster-card rarity-${rar}`;
+
+  // サイドラベル
+  if (sideLabel) {
+    const sl = document.createElement('div');
+    sl.className = 'card-side-label';
+    sl.textContent = sideLabel;
+    card.appendChild(sl);
+  }
+
+  // レア度バッジ
+  const badge = document.createElement('div');
+  badge.className = 'card-badge';
+  badge.textContent = rar;
+  card.appendChild(badge);
+
+  // 属性
+  const elemDiv = document.createElement('div');
+  elemDiv.className = 'card-elem';
+  elemDiv.textContent = (ELEM_JP[elem] || '?') + '属性';
+  card.appendChild(elemDiv);
+
+  // 大きなカンジ
+  const kanjiDiv = document.createElement('div');
+  const nameChars = [...monster.name];
+  const lenCls = nameChars.length === 1 ? '' : nameChars.length === 2 ? 'len2' : 'len3';
+  kanjiDiv.className = `card-kanji ${lenCls} ${ELEM_CLASS[elem] || 'elem-neutral'}`;
+  kanjiDiv.textContent = monster.name;
+  card.appendChild(kanjiDiv);
+
+  // HP バー
+  const hpWrap = document.createElement('div');
+  hpWrap.className = 'card-hp-wrap';
+
+  const hpLabel = document.createElement('div');
+  hpLabel.className = 'card-hp-label';
+  hpLabel.innerHTML = `<span>HP</span><span>${curHp}/${maxHp}</span>`;
+  hpWrap.appendChild(hpLabel);
+
+  const hpBar = document.createElement('div');
+  hpBar.className = 'card-hp-bar';
+  const hpFill = document.createElement('div');
+  const ratio = maxHp > 0 ? Math.max(0, Math.min(1, curHp / maxHp)) : 0;
+  const pct   = Math.round(ratio * 100);
+  let fillCls = '';
+  if (ratio <= 0.15) fillCls = 'hp-crit';
+  else if (ratio <= 0.35) fillCls = 'hp-low';
+  else if (ratio <= 0.65) fillCls = 'hp-mid';
+  hpFill.className = `card-hp-fill ${fillCls}`;
+  hpFill.style.width = pct + '%';
+  hpBar.appendChild(hpFill);
+  hpWrap.appendChild(hpBar);
+  card.appendChild(hpWrap);
+
+  // 名前・Lv
+  const nameDiv = document.createElement('div');
+  nameDiv.className = 'card-name';
+  nameDiv.textContent = `Lv${monster.level}`;
+  card.appendChild(nameDiv);
+
+  return card;
+}
+
+// タイトル画面グラフィック
+function showTitleGraphic() {
+  const g = $gfx();
+  g.innerHTML = '';
+  g.classList.remove('hidden');
+
+  const wrap = document.createElement('div');
+  wrap.className = 'title-graphic';
+
+  // ランダムに3文字のカンジカードを表示
+  const sample = sampleN(Object.values(G.allChars).filter(c => c.rarity === 'R'), 3);
+  const row = document.createElement('div');
+  row.className = 'title-kanji-row';
+  for (const ch of sample) {
+    const item = document.createElement('div');
+    item.className = `title-kanji-item ${ELEM_CLASS[ch.element] || 'elem-neutral'}`;
+    item.textContent = ch.char;
+    row.appendChild(item);
+  }
+  wrap.appendChild(row);
+
+  const sub = document.createElement('div');
+  sub.className = 'screen-line mid';
+  sub.textContent = '文字に力が宿る';
+  sub.style.textAlign = 'center';
+  sub.style.marginTop = '6px';
+  wrap.appendChild(sub);
+
+  g.appendChild(wrap);
+}
+
+// ---------- ボタン出力 (メイン) ----------
 function menu(title, choices) {
   return new Promise(resolve => {
-    ui.inputType    = 'menu';
-    ui.menuChoices  = choices;
+    ui.inputType     = 'menu';
+    ui.menuChoices   = choices;
     ui.inputResolver = resolve;
 
-    const m = $menu();
-    m.innerHTML = '';
+    const bc = $btns();
+    bc.innerHTML = '';
+
     if (title) {
       const t = document.createElement('div');
-      t.className = 'menu-title';
-      t.textContent = `  ${title}`;
-      m.appendChild(t);
+      t.className = 'screen-line mid';
+      t.style.marginBottom = '3px';
+      t.textContent = title;
+      bc.appendChild(t);
     }
+
+    // グリッドレイアウトを自動判定
+    const grid = document.createElement('div');
+    const cols = choices.length === 1 ? 'cols-1'
+               : choices.length <= 4 && choices.every(c => c.length <= 9) ? 'cols-2'
+               : 'cols-1';
+    grid.className = `action-grid ${cols}`;
+
     choices.forEach((c, i) => {
-      const d = document.createElement('div');
-      d.className = 'menu-choice';
-      d.textContent = `   ${i+1}. ${c}`;
-      d.onclick = () => resolveMenu(i);
-      m.appendChild(d);
+      const btn = document.createElement('button');
+      btn.className = 'action-btn';
+      btn.textContent = c;
+      btn.onclick = () => resolveMenu(i);
+      grid.appendChild(btn);
     });
+    bc.appendChild(grid);
   });
 }
 
@@ -326,22 +455,26 @@ function resolveMenu(idx) {
   if (ui.inputType !== 'menu' || !ui.inputResolver) return;
   const fn = ui.inputResolver;
   ui.inputType = null; ui.inputResolver = null; ui.menuChoices = [];
-  $menu().innerHTML = '';
+  $btns().innerHTML = '';
   fn(idx);
 }
 
-// ===== 一時停止 =====
-function pause() {
+// ---------- 一時停止ボタン ----------
+function pause(label = '  ▶ つづける') {
   return new Promise(resolve => {
-    ui.inputType = 'pause';
+    ui.inputType     = 'pause';
     ui.inputResolver = resolve;
-    const m = $menu();
-    m.innerHTML = '';
-    const d = document.createElement('div');
-    d.className = 'menu-choice';
-    d.textContent = '  → Enterキーで続ける';
-    d.onclick = () => resolvePause();
-    m.appendChild(d);
+
+    const bc = $btns();
+    bc.innerHTML = '';
+    const grid = document.createElement('div');
+    grid.className = 'action-grid cols-1';
+    const btn = document.createElement('button');
+    btn.className = 'action-btn pause-btn';
+    btn.textContent = label;
+    btn.onclick = () => resolvePause();
+    grid.appendChild(btn);
+    bc.appendChild(grid);
   });
 }
 
@@ -349,48 +482,16 @@ function resolvePause() {
   if (ui.inputType !== 'pause' || !ui.inputResolver) return;
   const fn = ui.inputResolver;
   ui.inputType = null; ui.inputResolver = null;
-  $menu().innerHTML = '';
+  $btns().innerHTML = '';
   fn();
 }
 
-// ===== 数字入力 (文字選択用) =====
-function waitForNumber(maxN) {
-  return new Promise(resolve => {
-    ui.inputType = 'pick';
-    ui.inputResolver = resolve;
-    updatePickPrompt(maxN);
-  });
-}
-
-function updatePickPrompt(maxN) {
-  const m = $menu();
-  m.innerHTML = '';
-  const d = document.createElement('div');
-  d.className = 'menu-input-line';
-  d.id = 'pick-prompt';
-  d.textContent = `  番号 > ${ui.numBuf}_  (0/Enter: 確定)`;
-  m.appendChild(d);
-}
-
-function resolveNumber(maxN) {
-  if (ui.inputType !== 'pick' || !ui.inputResolver) return;
-  const n = parseInt(ui.numBuf || '0');
-  ui.numBuf = '';
-  const fn = ui.inputResolver;
-  ui.inputType = null; ui.inputResolver = null;
-  $menu().innerHTML = '';
-  fn(n);
-}
-
-// ===== キーボード入力 =====
+// ---------- キーボードショートカット ----------
 document.addEventListener('keydown', e => {
-  clearTimeout(ui.numTimer);
-
   if (ui.inputType === 'pause') {
-    if (e.key === 'Enter' || e.key === ' ') resolvePause();
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); resolvePause(); }
     return;
   }
-
   if (ui.inputType === 'menu') {
     if (e.key >= '1' && e.key <= '9') {
       const idx = parseInt(e.key) - 1;
@@ -400,99 +501,152 @@ document.addEventListener('keydown', e => {
     }
     return;
   }
+});
 
-  if (ui.inputType === 'pick') {
-    const maxN = ui._pickMax || 99;
-    if (e.key >= '0' && e.key <= '9') {
-      ui.numBuf += e.key;
-      updatePickPrompt(maxN);
-      // Auto-confirm after short delay for single-digit
-      if (maxN <= 9) {
-        ui.numTimer = setTimeout(() => resolveNumber(maxN), 400);
-      }
-    } else if (e.key === 'Enter') {
-      resolveNumber(maxN);
-    } else if (e.key === 'Backspace') {
-      ui.numBuf = ui.numBuf.slice(0, -1);
-      updatePickPrompt(maxN);
-    }
-    return;
+// Aボタン = 最初の選択肢
+document.getElementById('hw-a').addEventListener('click', () => {
+  if (ui.inputType === 'pause') { resolvePause(); return; }
+  if (ui.inputType === 'menu') { resolveMenu(0); return; }
+});
+// Bボタン = 最後の選択肢（キャンセル）
+document.getElementById('hw-b').addEventListener('click', () => {
+  if (ui.inputType === 'pause') { resolvePause(); return; }
+  if (ui.inputType === 'menu' && ui.menuChoices.length > 0) {
+    resolveMenu(ui.menuChoices.length - 1);
   }
 });
 
-// ===== 文字リスト表示 =====
-function showCharList(pool, chosen = []) {
-  print();
-  for (let j = 0; j < pool.length; j++) {
-    const ch   = pool[j];
-    const ej   = ELEM_JP[ch.element] || '?';
-    const mark = chosen.includes(ch) ? '★' : '  ';
-    const num  = String(j + 1).padStart(2, ' ');
-    // 4 chars per row
-    if (j % 4 === 0) {
-      const rowDiv = document.createElement('div');
-      rowDiv.className = 'screen-line';
-      rowDiv.id = `charrow-${Math.floor(j / 4)}`;
-      $out().appendChild(rowDiv);
-    }
-    const row = document.getElementById(`charrow-${Math.floor(j / 4)}`);
-    if (row) row.textContent += `${mark}${num}.[${ch.char}]${ej}/${ch.rarity}  `;
-  }
-  print();
-}
-
-// ===== 文字ピック =====
+// ===================================================
+// ===== 文字タイルピッカー =====
+// ===================================================
 async function pickChars(prompt, pool, maxLen = 3) {
-  while (true) {
-    clearScreen();
-    printHeader();
-    print();
-    print(`  ${prompt}  （最大${maxLen}文字、選んだ順が名前の順番）`);
+  return new Promise(resolve => {
     const chosen = [];
-    showCharList(pool, chosen);
-    print('  番号を入力してEnter。0またはEnterのみで確定。');
 
-    while (chosen.length < maxLen) {
-      ui._pickMax = pool.length;
-      const n = await waitForNumber(pool.length);
-      if (n === 0) {
-        if (chosen.length === 0) {
-          print('  ※ 1文字以上 えらんでください');
-          continue;
+    function render() {
+      const bc = $btns();
+      bc.innerHTML = '';
+      hideGraphics();
+
+      // --- 選択済みスロット＋プロンプト ---
+      const wrap = document.createElement('div');
+      wrap.id = 'char-picker-wrap';
+
+      // 選択済み表示行
+      const selRow = document.createElement('div');
+      selRow.className = 'char-selected-row';
+
+      const selLabel = document.createElement('div');
+      selLabel.className = 'char-selected-label';
+      selLabel.textContent = `名前(${chosen.length}/${maxLen})：`;
+      selRow.appendChild(selLabel);
+
+      for (let i = 0; i < maxLen; i++) {
+        const slot = document.createElement('div');
+        slot.className = 'char-selected-slot' + (chosen[i] ? ' filled' : '');
+        slot.textContent = chosen[i] ? chosen[i].char : '＿';
+        if (chosen[i]) {
+          const idx = i;
+          slot.title = '取り消す';
+          slot.onclick = () => {
+            chosen.splice(idx, 1);
+            render();
+          };
         }
-        break;
+        selRow.appendChild(slot);
       }
-      if (n < 1 || n > pool.length) {
-        print(`  ※ 1〜${pool.length} を入力してください`);
-        continue;
+      wrap.appendChild(selRow);
+
+      // --- タイルグリッド ---
+      const tileScroll = document.createElement('div');
+      tileScroll.className = 'char-tile-scroll';
+      const tileGrid = document.createElement('div');
+      tileGrid.className = 'char-tile-grid';
+
+      pool.forEach((ch, idx) => {
+        const isChosen = chosen.includes(ch);
+        const tile = document.createElement('div');
+        tile.className = 'char-tile' + (isChosen ? ' selected' : '');
+
+        const num = document.createElement('div');
+        num.className = 'tile-num';
+        num.textContent = idx + 1;
+
+        const kanji = document.createElement('div');
+        kanji.className = `tile-kanji ${ELEM_CLASS[ch.element] || ''}`;
+        kanji.textContent = ch.char;
+
+        const info = document.createElement('div');
+        info.className = 'tile-info';
+        info.textContent = `${ELEM_JP[ch.element] || '?'}/${ch.rarity}`;
+
+        tile.appendChild(num);
+        tile.appendChild(kanji);
+        tile.appendChild(info);
+
+        if (!isChosen && chosen.length < maxLen) {
+          tile.onclick = () => {
+            chosen.push(ch);
+            render();
+          };
+        }
+        tileGrid.appendChild(tile);
+      });
+
+      tileScroll.appendChild(tileGrid);
+      wrap.appendChild(tileScroll);
+
+      // --- 確定 / やりなおし ボタン ---
+      const actionRow = document.createElement('div');
+      actionRow.className = 'picker-action-row';
+
+      const okBtn = document.createElement('button');
+      okBtn.className = 'action-btn';
+      okBtn.textContent = chosen.length > 0 ? `「${chosen.map(c=>c.char).join('')}」で決定` : '(1文字以上選ぶ)';
+      okBtn.disabled = chosen.length === 0;
+      if (chosen.length > 0) {
+        okBtn.onclick = () => {
+          $btns().innerHTML = '';
+          resolve(chosen);
+        };
+      } else {
+        okBtn.style.opacity = '0.5';
+        okBtn.style.cursor = 'default';
       }
-      const ch = pool[n - 1];
-      if (chosen.includes(ch)) {
-        print('  ※ すでに選ばれています');
-        continue;
-      }
-      chosen.push(ch);
-      // Refresh char list display
-      $out().querySelectorAll('[id^="charrow-"]').forEach(el => el.remove());
-      showCharList(pool, chosen);
-      print(`     → [${ch.char}]`);
+
+      const resetBtn = document.createElement('button');
+      resetBtn.className = 'action-btn pause-btn';
+      resetBtn.textContent = 'やりなおし';
+      resetBtn.onclick = () => {
+        chosen.length = 0;
+        render();
+      };
+
+      actionRow.appendChild(okBtn);
+      actionRow.appendChild(resetBtn);
+      wrap.appendChild(actionRow);
+      bc.appendChild(wrap);
     }
 
-    if (!chosen.length) continue;
-    const name = chosen.map(c => c.char).join('');
-    print(`\n  「${name}」  でよいですか？`);
-    const ok = await menu('', ['はい', 'やりなおす']);
-    if (ok === 0) return chosen;
-    // やりなおし
-  }
+    // テキストエリアにプロンプト表示
+    $text().innerHTML = '';
+    print();
+    print(`  ★ ${prompt}`);
+    print(`  文字をタップして選択（最大${maxLen}文字）`);
+    print();
+
+    render();
+  });
 }
 
+// ===================================================
 // ===== ゲーム開始 =====
+// ===================================================
 async function gameStart() {
   clearScreen();
-  printHeader();
+  showTitleGraphic();
   print();
-  print('  文字には力が宿る。');
+  print('  文字には力が宿る。', 'bright');
   print('  カンジの力を持つモンスターを育て、');
   print('  世界を旅しよう。');
   print();
@@ -517,15 +671,18 @@ function createStarter() {
   G.battleParty.push(m);
 }
 
+// ===================================================
 // ===== メインループ =====
+// ===================================================
 async function mainLoop() {
   while (true) {
     clearScreen();
-    printHeader();
     const m = leader();
+    showSingleCard(m, m.currentHp);
     print();
-    print('  ' + m.statusLine());
-    print(`  戦闘パーティ: ${G.battleParty.length}/${BATTLE_MAX}体  所持: ${G.monsters.length}体`);
+    print(`  ▶ ${m.name}  [${m.rarity()}]  Lv${m.level}`, 'bright');
+    print(`    HP: ${m.currentHp}/${m.maxHp}  ATK:${m.atk} DEF:${m.def_} SPD:${m.spd}`);
+    print(`  なかま: ${G.battleParty.length}/${BATTLE_MAX}体  所持: ${G.monsters.length}体`);
     print();
 
     const idx = await menu('コマンド', ['ぼうけん', 'なかま', 'ずかん', 'ぼうけんのしょ', 'やめる']);
@@ -535,9 +692,8 @@ async function mainLoop() {
     else if (idx === 3) await bookMenu();
     else {
       clearScreen();
-      printHeader();
       print();
-      print('  またね！');
+      print('  またね！', 'bright');
       print();
       print('  （ページを閉じてください）');
       return;
@@ -545,10 +701,11 @@ async function mainLoop() {
   }
 }
 
+// ===================================================
 // ===== 探索 =====
+// ===================================================
 async function explore() {
   clearScreen();
-  printHeader();
   const names = G.battleParty.map(m => m.name).join('　');
   print();
   print(`  ${names} たちは ぼうけんに でかけた……`);
@@ -556,14 +713,13 @@ async function explore() {
   await pause();
 
   const enemy = makeWildEnemy();
-  const rar = enemy.rarity();
+  const rar   = enemy.rarity();
 
   clearScreen();
-  printHeader();
+  showGraphics(enemy, enemy.currentHp, leader(), leader().currentHp);
   print();
-  print(`  やせいの 「${enemy.name}」[${rar}] が あらわれた！`);
-  print();
-  print('  ' + enemy.statusLine());
+  print(`  やせいの 「${enemy.name}」 が あらわれた！`, 'bright');
+  print(`  [${rar}]  ${ELEM_JP[enemy.elem()] || '?'}属性  Lv${enemy.level}`);
   print();
 
   const idx = await menu('どうする？', ['たたかう', 'にげる']);
@@ -603,7 +759,9 @@ function makeWildEnemy() {
   return e;
 }
 
+// ===================================================
 // ===== バトル =====
+// ===================================================
 async function doBattle(enemy) {
   const partyHp = G.battleParty.map(m => m.currentHp);
   let eHp       = enemy.maxHp;
@@ -612,32 +770,31 @@ async function doBattle(enemy) {
   let elemAdv   = false;
   const log     = [];
 
+  function refreshBattleGraphics() {
+    showGraphics(enemy, eHp, G.battleParty[0], partyHp[0]);
+  }
+
   function showBattleStatus() {
     clearScreen();
-    printHeader();
+    refreshBattleGraphics();
     print();
-    print(`  ─ ターン ${turns + 1} ─`);
+    print(`  ─ ターン ${turns + 1} ─`, 'mid');
     print();
     for (let i = 0; i < G.battleParty.length; i++) {
       const m  = G.battleParty[i];
-      const ko = partyHp[i] <= 0 ? ' 【KO】' : '';
-      print(`  ${m.name}[${m.rarity()}]  HP ${makeBar(partyHp[i], m.maxHp)}  ${partyHp[i]}/${m.maxHp}${ko}`);
+      const ko = partyHp[i] <= 0 ? '  【KO】' : '';
+      const arrow = i === 0 ? '▶' : ' ';
+      print(`  ${arrow} ${m.name} [${m.rarity()}] Lv${m.level}${ko}`);
     }
-    print();
-    print(`  てき: ${enemy.name}[${enemy.rarity()}]  HP ${makeBar(eHp, enemy.maxHp)}`);
-    print();
   }
 
   while (G.battleParty.some((_, i) => partyHp[i] > 0) && eHp > 0) {
     showBattleStatus();
-    const choice = await menu('どうする？', ['たたかう', 'にげる']);
+    const choice = await menu('どうする？', ['たたかう！', 'にげる']);
 
     if (choice === 1) {
-      for (let i = 0; i < G.battleParty.length; i++) {
-        G.battleParty[i].currentHp = partyHp[i];
-      }
+      for (let i = 0; i < G.battleParty.length; i++) G.battleParty[i].currentHp = partyHp[i];
       clearScreen();
-      printHeader();
       print();
       print('  うまく にげられた！');
       for (const m of G.battleParty) m.heal();
@@ -649,7 +806,6 @@ async function doBattle(enemy) {
     turns++;
     const roundMsgs = [];
 
-    // 速度順
     const actors = G.battleParty
       .map((m, i) => partyHp[i] > 0 ? ['p', i, m.spd] : null)
       .filter(Boolean);
@@ -665,8 +821,8 @@ async function doBattle(enemy) {
         if (pm > 1.0) elemAdv = true;
         const dmg = Math.max(1, Math.floor(m.atk * pm) - Math.floor(enemy.def_ / 2));
         eHp = Math.max(0, eHp - dmg);
-        const adv = pm > 1.0 ? ' ぞくせいゆうり！' : '';
-        roundMsgs.push(`  ${m.name} の こうげき！  ${enemy.name} に ${dmg} ダメージ！${adv}`);
+        const adv = pm > 1.0 ? ' ★ぞくせいゆうり！' : '';
+        roundMsgs.push(`  ${m.name} → ${enemy.name}  ${dmg}ダメージ！${adv}`);
       } else {
         const alive = partyHp.map((hp, i) => hp > 0 ? i : -1).filter(i => i >= 0);
         if (!alive.length) break;
@@ -676,32 +832,29 @@ async function doBattle(enemy) {
         const dmg = Math.max(1, Math.floor(enemy.atk * em) - Math.floor(tgt.def_ / 2));
         partyHp[ti] = Math.max(0, partyHp[ti] - dmg);
         flawless = false;
-        roundMsgs.push(`  ${enemy.name} の こうげき！  ${tgt.name} に ${dmg} ダメージ！`);
+        roundMsgs.push(`  ${enemy.name} → ${tgt.name}  ${dmg}ダメージ！`);
       }
     }
 
-    // ラウンド結果表示
+    // ラウンド結果
     clearScreen();
-    printHeader();
+    refreshBattleGraphics();
     print();
     for (const msg of roundMsgs) print(msg);
     log.push(...roundMsgs);
-
     print();
-    printSep();
     for (let i = 0; i < G.battleParty.length; i++) {
       const m  = G.battleParty[i];
       const ko = partyHp[i] <= 0 ? ' 【KO】' : '';
-      print(`  ${m.name}[${m.rarity()}]  HP ${makeBar(partyHp[i], m.maxHp)}  ${partyHp[i]}/${m.maxHp}${ko}`);
+      print(`  ${m.name}  HP:${partyHp[i]}/${m.maxHp}${ko}`);
     }
-    print(`  てき  ${enemy.name}[${enemy.rarity()}]  HP ${makeBar(eHp, enemy.maxHp)}`);
+    print(`  ${enemy.name}  HP:${eHp}/${enemy.maxHp}`);
 
     if (G.battleParty.some((_, i) => partyHp[i] > 0) && eHp > 0) {
       await pause();
     }
   }
 
-  // 戦闘終了
   const won = eHp <= 0 && G.battleParty.some((_, i) => partyHp[i] > 0);
 
   let bm = 1.0;
@@ -712,55 +865,51 @@ async function doBattle(enemy) {
     const avgLv = G.battleParty.reduce((s,m)=>s+m.level,0) / G.battleParty.length;
     if (avgLv > enemy.level + 3) bm *= 0.8;
   }
-
-  // ログ保存
   G.battleLog = log;
 
   print();
   if (won) {
-    print('  かちだ！', 'bright');
+    print('  ★ かちだ！', 'bright');
     if (flawless) print('  きずひとつない かんぜんしょうり！');
-    if (elemAdv)  print('  ぞくせいゆうり！');
-    for (let i = 0; i < G.battleParty.length; i++) {
-      G.battleParty[i].currentHp = partyHp[i];
-    }
+    if (elemAdv)  print('  ぞくせいゆうり ボーナス！');
+    for (let i = 0; i < G.battleParty.length; i++) G.battleParty[i].currentHp = partyHp[i];
     const exp = enemy.level * 6 + randInt(1, 6);
-    print(`\n  けいけんちを ${exp} もらった！`);
+    print(`\n  けいけんち +${exp}！`);
     for (const m of G.battleParty) {
       for (const msg of m.gainExp(exp)) print(msg, 'bright');
     }
   } else {
-    print('  たおれてしまった……', 'dim');
+    print('  ……たおれてしまった', 'dim');
   }
 
   for (const m of G.battleParty) m.heal();
-  print('\n  （パーティは ひとやすみして HPが かいふくした）');
+  print('  （パーティは ひとやすみして HPが かいふくした）', 'dim');
   await pause();
 
   if (!won) return;
 
-  // ひらめきチェック
   for (const m of G.battleParty) {
     const insp = checkInsp(m);
     if (insp) { await inspiration(m, insp); return; }
   }
 
-  // 勧誘判定
   const base = 0.3;
   const rm   = RARITY_RECRUIT[enemy.rarity()] || 1.0;
   const rate = Math.min(0.90, Math.max(0.02, base * rm * bm));
   if (Math.random() < rate) await recruit(enemy);
 }
 
+// ===================================================
 // ===== 勧誘 =====
+// ===================================================
 async function recruit(enemy) {
   clearScreen();
-  printHeader();
+  showSingleCard(enemy, enemy.maxHp);
   print();
-  print(`  「${enemy.name}」[${enemy.rarity()}] が なかまに なりたそうに こちらを みている！`);
+  print(`  「${enemy.name}」が なかまに なりたそうに こちらを みている！`, 'bright');
   print();
 
-  const idx = await menu('なかまにする？', ['はい', 'いいえ']);
+  const idx = await menu('なかまにする？', ['はい！', 'いいえ']);
   if (idx === 1) {
     print(`\n  「${enemy.name}」は さっていった。`);
     await pause();
@@ -770,23 +919,29 @@ async function recruit(enemy) {
   enemy.heal();
   unlock(enemy.chars);
   G.monsters.push(enemy);
-  print(`\n  「${enemy.name}」が なかまに なった！`);
+  print(`\n  「${enemy.name}」が なかまに なった！`, 'bright');
   print(`  所持モンスター: ${G.monsters.length}体`);
 
   if (G.battleParty.length < BATTLE_MAX) {
     G.battleParty.push(enemy);
     print(`  戦闘パーティに くわわった！  (${G.battleParty.length}/${BATTLE_MAX}体)`);
   } else {
-    print('  ※ 戦闘パーティは いっぱいです。');
-    print('    「なかま」から メンバーを いれかえられます。');
+    print('  ※ 戦闘パーティが いっぱいです。', 'dim');
   }
   await pause();
 }
 
+// ===================================================
 // ===== ひらめき =====
+// ===================================================
 async function inspiration(monster, newChar) {
   clearScreen();
-  printHeader();
+  // フラッシュ演出
+  $gfx().classList.remove('hidden');
+  $gfx().classList.add('insp-flash');
+  $gfx().innerHTML = '';
+  setTimeout(() => $gfx().classList.remove('insp-flash'), 1600);
+
   print();
   print('  ✨ ひらめき！', 'bright');
   print();
@@ -796,16 +951,18 @@ async function inspiration(monster, newChar) {
   printSep();
 
   const cd = G.allChars[newChar];
-  if (cd) print(`\n  ★ 新しい文字「${newChar}」  [${cd.rarity}]`);
+  if (cd) {
+    print();
+    print(`  ★ 新しい文字 「${newChar}」  [${cd.rarity}]  ${ELEM_JP[cd.element] || '?'}属性`, 'bright');
+  }
   print();
 
-  const idx = await menu('ひらめきを つかう？', ['つかう', 'みおくる']);
+  const idx = await menu('ひらめきを つかう？', ['つかう！', 'みおくる']);
   monster.inspirationUsed = true;
 
   if (idx === 0 && cd) {
     unlock([cd]);
 
-    // 使える文字プール
     const cands = {};
     for (const pname of [...monster.parents, ...monster.grandparents]) {
       for (const ch of pname) {
@@ -820,7 +977,10 @@ async function inspiration(monster, newChar) {
     monster.grandparents = oldParents;
     monster.parents = [monster.name];
 
-    print('\n  新しい名前を つけてあげよう。');
+    clearScreen();
+    print();
+    print('  新しい名前を つけてあげよう。', 'bright');
+
     const newChars = await pickChars('つかえる文字', pool, 3);
     const newName  = newChars.map(c => c.char).join('');
 
@@ -829,38 +989,40 @@ async function inspiration(monster, newChar) {
     monster.calc();
 
     clearScreen();
-    printHeader();
+    showSingleCard(monster, monster.currentHp);
     print();
     print(`  「${newName}」に しんかした！`, 'bright');
-    print('  ' + monster.statusLine());
+    print(`  [${monster.rarity()}]  ${ELEM_JP[monster.elem()]}属性  Lv${monster.level}`);
   } else {
     print('\n  ひらめきは きえていった……', 'dim');
   }
   await pause();
 }
 
+// ===================================================
 // ===== なかまメニュー =====
+// ===================================================
 async function partyMenu() {
   while (true) {
     clearScreen();
-    printHeader();
     print();
-    print(`  ＜戦闘パーティ＞  (${G.battleParty.length}/${BATTLE_MAX}体)`);
+    print(`  ＜戦闘パーティ＞  (${G.battleParty.length}/${BATTLE_MAX}体)`, 'bright');
     print();
     for (let i = 0; i < G.battleParty.length; i++) {
-      const mark = i === 0 ? '▶' : ' ';
-      print(`  ${mark} ${G.battleParty[i].statusLine()}`);
+      const m    = G.battleParty[i];
+      const mark = i === 0 ? '▶' : '  ';
+      print(`  ${mark} ${m.name} [${m.rarity()}] Lv${m.level}  HP:${m.currentHp}/${m.maxHp}`);
     }
 
     const box = G.monsters.filter(m => !G.battleParty.includes(m));
     if (box.length) {
       print();
-      print(`  ＜ボックス＞  (${box.length}体)`);
-      for (const m of box) print('     ' + m.statusLine());
+      print(`  ＜ボックス＞  (${box.length}体)`, 'mid');
+      for (const m of box) print(`     ${m.name} [${m.rarity()}] Lv${m.level}`);
     }
     print();
 
-    const idx = await menu('操作', ['せんとうメンバーへんこう', 'くわしくみる', 'はいごう（配合）', 'もどる']);
+    const idx = await menu('操作', ['メンバーへんこう', 'くわしくみる', '配合する', 'もどる']);
     if      (idx === 0) await editBattleParty();
     else if (idx === 1) await detailView();
     else if (idx === 2) await breed();
@@ -871,29 +1033,28 @@ async function partyMenu() {
 async function pickMonster(prompt, exclude = null) {
   const cands = G.monsters.filter(m => m !== exclude);
   if (!cands.length) return null;
-  const labels = cands.map(m => `${m.name} [${m.rarity()}] Lv${m.level}  HP:${m.currentHp}/${m.maxHp}`);
+  const labels = cands.map(m => `${m.name} [${m.rarity()}] Lv${m.level}`);
   const idx = await menu(prompt, labels);
   return cands[idx];
 }
 
 async function editBattleParty() {
   clearScreen();
-  printHeader();
   print();
-  print(`  ＜戦闘パーティ＞  (${G.battleParty.length}/${BATTLE_MAX}体)`);
-  for (let i = 0; i < G.battleParty.length; i++) {
-    print(`    ${i+1}. ${G.battleParty[i].statusLine()}`);
-  }
+  print(`  ＜戦闘パーティ＞  (${G.battleParty.length}/${BATTLE_MAX}体)`, 'bright');
+  for (const m of G.battleParty) print(`    ${m.name} [${m.rarity()}] Lv${m.level}`);
+
   const box = G.monsters.filter(m => !G.battleParty.includes(m));
   if (box.length) {
-    print('\n  ＜ボックス＞');
-    for (const m of box) print('       ' + m.statusLine());
+    print('\n  ＜ボックス＞', 'mid');
+    for (const m of box) print(`    ${m.name} [${m.rarity()}] Lv${m.level}`);
   }
+  print();
 
   const idx = await menu('どうする？', ['パーティに くわえる', 'パーティから はずす', 'もどる']);
   if (idx === 0) {
     if (G.battleParty.length >= BATTLE_MAX) {
-      print(`\n  パーティが いっぱいです。（最大${BATTLE_MAX}体）`);
+      print(`\n  パーティが いっぱいです（最大${BATTLE_MAX}体）`);
       await pause();
       return;
     }
@@ -903,7 +1064,7 @@ async function editBattleParty() {
       return;
     }
     const labels = box.map(m => `${m.name} [${m.rarity()}] Lv${m.level}`);
-    const bi = await menu('パーティに くわえる モンスターを えらぶ', labels);
+    const bi = await menu('パーティに くわえる', labels);
     G.battleParty.push(box[bi]);
     print(`\n  「${box[bi].name}」が 戦闘パーティに くわわった！`);
     await pause();
@@ -914,7 +1075,7 @@ async function editBattleParty() {
       return;
     }
     const labels = G.battleParty.map(m => `${m.name} [${m.rarity()}] Lv${m.level}`);
-    const bi = await menu('パーティから はずす モンスターを えらぶ', labels);
+    const bi = await menu('パーティから はずす', labels);
     const m = G.battleParty.splice(bi, 1)[0];
     print(`\n  「${m.name}」を パーティから はずした。`);
     await pause();
@@ -922,29 +1083,30 @@ async function editBattleParty() {
 }
 
 async function detailView() {
-  const m = await pickMonster('くわしく みる モンスターを えらぶ');
+  const m = await pickMonster('くわしく みる モンスター');
   if (!m) return;
   clearScreen();
-  printHeader();
+  showSingleCard(m, m.currentHp);
   print();
   for (const line of m.fullStatus()) print(line);
   await pause();
 }
 
+// ===================================================
 // ===== 配合 =====
+// ===================================================
 async function breed() {
   if (G.monsters.length < 2) {
-    print('\n  モンスターが 2体 いないと はいごうできない。');
+    print('\n  モンスターが 2体 いないと 配合できない。');
     await pause();
     return;
   }
   clearScreen();
-  printHeader();
   print();
-  print('  ■ 配合');
+  print('  ■ 配合', 'bright');
   print();
-  print('  2体の モンスターの 文字を あわせて');
-  print('  あたらしい モンスターを うみだす。');
+  print('  2体の文字を あわせて あたらしい');
+  print('  モンスターを うみだす。');
   print('  ※ つかった 2体は いなくなります。');
   print();
 
@@ -953,12 +1115,16 @@ async function breed() {
   const p2 = await pickMonster('親2を えらぶ', p1);
   if (!p2) return;
 
-  print(`\n  親1: ${p1.name} [${p1.rarity()}]  ×  親2: ${p2.name} [${p2.rarity()}]`);
-  if (await menu('はいごう する？', ['はい', 'いいえ']) === 1) {
+  clearScreen();
+  showGraphics(p1, p1.currentHp, p2, p2.currentHp);
+  print();
+  print(`  ${p1.name}  ×  ${p2.name}`, 'bright');
+  print(`  [${p1.rarity()}]       [${p2.rarity()}]`);
+  print();
+  if (await menu('配合する？', ['する！', 'やめる']) === 1) {
     print('  やめた。'); await pause(); return;
   }
 
-  // 文字プール
   const cands = {};
   for (const ch of [...p1.chars, ...p2.chars]) cands[ch.char] = ch;
   for (const pname of [...p1.parents, ...p2.parents].slice(0, 4)) {
@@ -968,12 +1134,14 @@ async function breed() {
   }
   const pool = Object.values(cands);
 
-  print(`\n  子どもの 名前を きめよう。`);
+  clearScreen();
+  print();
+  print(`  子どもの 名前を きめよう。`, 'bright');
   print(`  （親1「${p1.name}」＋親2「${p2.name}」の文字）`);
+
   const newChars = await pickChars('つかえる文字', pool, 3);
   const newName  = newChars.map(c => c.char).join('');
-
-  const childLv = Math.max(1, Math.floor((p1.level + p2.level) / 4));
+  const childLv  = Math.max(1, Math.floor((p1.level + p2.level) / 4));
   const child = new Monster({
     name: newName, chars: newChars, level: childLv,
     parents: [p1.name, p2.name],
@@ -991,24 +1159,25 @@ async function breed() {
   if (G.battleParty.length < BATTLE_MAX) G.battleParty.push(child);
 
   clearScreen();
-  printHeader();
+  showSingleCard(child, child.currentHp);
   print();
   print(`  「${newName}」が うまれた！`, 'bright');
-  print('  ' + child.statusLine());
+  print(`  [${child.rarity()}]  ${ELEM_JP[child.elem()]}属性  Lv${child.level}`);
   print();
-  print(`  ※「${p1.name}」と「${p2.name}」は 旅立っていった……`, 'dim');
+  print(`  ※「${p1.name}」と「${p2.name}」は 旅立った……`, 'dim');
   await pause();
 }
 
+// ===================================================
 // ===== ぼうけんのしょ =====
+// ===================================================
 async function bookMenu() {
   while (true) {
     clearScreen();
-    printHeader();
     print();
-    print('  ■ ぼうけんのしょ');
+    print('  ■ ぼうけんのしょ', 'bright');
     print();
-    const idx = await menu('どうする？', ['きろくする（セーブ）', 'よみなおす（ロード）', 'さいきんのたたかい', 'もどる']);
+    const idx = await menu('どうする？', ['きろくする', 'よみなおす', 'さいきんのたたかい', 'もどる']);
     if      (idx === 0) await saveMenu();
     else if (idx === 1) await loadMenu(false);
     else if (idx === 2) await viewLog();
@@ -1017,27 +1186,25 @@ async function bookMenu() {
 }
 
 function slotLabels() {
-  return Array.from({length: SLOTS}, (_, i) => `スロット${i+1}:  ${slotInfo(i+1)}`);
+  return Array.from({length: SLOTS}, (_, i) => `S${i+1}: ${slotInfo(i+1)}`);
 }
 
 async function saveMenu() {
   clearScreen();
-  printHeader();
   print('\n  ■ きろくする\n');
   const labels = [...slotLabels(), 'もどる'];
-  const idx = await menu('どのスロットに きろくする？', labels);
+  const idx = await menu('どこに きろくする？', labels);
   if (idx === SLOTS) return;
   saveGame(idx + 1);
-  print(`\n  スロット${idx+1} に きろくした！`);
+  print(`\n  スロット${idx+1} に きろくした！`, 'bright');
   await pause();
 }
 
 async function loadMenu(fromTitle) {
   clearScreen();
-  printHeader();
   print('\n  ■ よみなおす\n');
   const labels = [...slotLabels(), 'もどる'];
-  const idx = await menu('どのスロットを よむ？', labels);
+  const idx = await menu('どれを よむ？', labels);
   if (idx === SLOTS) return false;
   const slot = idx + 1;
   if (slotInfo(slot) === '(空)') {
@@ -1047,7 +1214,7 @@ async function loadMenu(fromTitle) {
   }
   const ok = loadGame(slot);
   if (ok) {
-    print(`\n  スロット${slot} を よみこんだ！`);
+    print(`\n  スロット${slot} を よみこんだ！`, 'bright');
     if (!fromTitle) await pause();
   } else {
     print('\n  よみこみに しっぱいした。');
@@ -1058,7 +1225,6 @@ async function loadMenu(fromTitle) {
 
 async function viewLog() {
   clearScreen();
-  printHeader();
   print('\n  ■ さいきんのたたかい\n');
   if (!G.battleLog.length) {
     print('  まだ たたかいの きろくが ありません。');
@@ -1068,11 +1234,12 @@ async function viewLog() {
   await pause();
 }
 
+// ===================================================
 // ===== ずかん =====
+// ===================================================
 async function zukan() {
   while (true) {
     clearScreen();
-    printHeader();
     const total = Object.keys(G.allChars).length;
     const have  = Object.keys(G.unlocked).length;
     const rarCnt = {N:0, R:0, SR:0, SSR:0};
@@ -1080,7 +1247,7 @@ async function zukan() {
     const cStr = ['N','R','SR','SSR'].map(r => `${r}:${rarCnt[r]}体`).join('  ');
 
     print();
-    print('  ■ ずかん');
+    print('  ■ ずかん', 'bright');
     print();
     print(`  解禁文字      : ${have} / ${total}`);
     print(`  所持モンスター: ${G.monsters.length}体`);
@@ -1096,13 +1263,12 @@ async function zukan() {
 
 async function zukanChars() {
   clearScreen();
-  printHeader();
   const byElem = {};
   for (const ch of Object.values(G.unlocked)) {
     (byElem[ch.element] = byElem[ch.element] || []).push(ch);
   }
   print();
-  print(`  ■ 解禁文字リスト  (${Object.keys(G.unlocked).length}/${Object.keys(G.allChars).length})`);
+  print(`  ■ 解禁文字リスト  (${Object.keys(G.unlocked).length}/${Object.keys(G.allChars).length})`, 'bright');
   print();
   printSep();
   for (const ek of Object.keys(byElem).sort()) {
@@ -1114,7 +1280,6 @@ async function zukanChars() {
 }
 
 async function inspTree() {
-  // 逆引き: 出力文字 → [[inputs], ...]
   const recipes = {};
   for (const [key, out] of Object.entries(G.inspMap)) {
     (recipes[out] = recipes[out] || []).push(key.split('|'));
@@ -1161,21 +1326,17 @@ async function inspTree() {
     collect(outCh, '', new Set([outCh]), 0);
   }
 
-  // ページング表示
   const PAGE = 18;
   let pageLines = [...lines];
 
   async function showPage() {
     while (pageLines.length > 0) {
       clearScreen();
-      printHeader();
-      print('\n  ■ ひらめきマップ  (未解放含む全量)');
-      print(`  ★ = 解禁済み文字   全${Object.keys(G.inspMap).length}件`);
+      print('\n  ■ ひらめきマップ', 'bright');
+      print(`  ★=解禁済み   全${Object.keys(G.inspMap).length}件`);
       print();
-
       const chunk = pageLines.splice(0, PAGE);
       for (const line of chunk) print(`  ${line}`);
-
       if (pageLines.length > 0) {
         const c = await menu('', ['続きを見る', '終了']);
         if (c === 1) return;

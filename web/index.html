@@ -25,11 +25,19 @@
       <div class="screen-bezel">
         <div class="screen-label">DOT MATRIX WITH STEREO SOUND</div>
         <div id="screen">
-          <div id="screen-output"></div>
-          <div id="screen-menu-area">
-            <div class="menu-divider"></div>
-            <div id="screen-menu"></div>
+
+          <!-- ゾーン1: グラフィックエリア（モンスター表示） -->
+          <div id="screen-graphics" class="hidden"></div>
+
+          <!-- ゾーン2: テキストエリア（ログ・説明文） -->
+          <div id="screen-text"></div>
+
+          <!-- ゾーン3: ボタンエリア（選択肢） -->
+          <div id="screen-buttons">
+            <div class="btn-area-divider"></div>
+            <div id="btn-container"></div>
           </div>
+
         </div>
       </div>
 
@@ -45,25 +53,25 @@
         <!-- Select / Start -->
         <div class="center-btns">
           <div class="small-btn-wrap">
-            <div class="small-btn"></div>
+            <div class="small-btn" id="hw-select"></div>
             <div class="small-btn-label">SELECT</div>
           </div>
           <div class="small-btn-wrap">
-            <div class="small-btn"></div>
+            <div class="small-btn" id="hw-start"></div>
             <div class="small-btn-label">START</div>
           </div>
         </div>
 
         <!-- A / B buttons -->
         <div class="ab-btns">
-          <div class="btn btn-b">B</div>
-          <div class="btn btn-a">A</div>
+          <div class="btn btn-b" id="hw-b">B</div>
+          <div class="btn btn-a" id="hw-a">A</div>
         </div>
       </div>
 
       <!-- Bottom area -->
       <div class="gb-bottom">
-        <div class="kb-hint">← 数字キーで選択 &nbsp;|&nbsp; Enter で決定 →</div>
+        <div class="kb-hint">← ボタンをタップして選択 →</div>
         <div class="speaker">
           <div class="speaker-row"><span></span><span></span><span></span><span></span><span></span><span></span></div>
           <div class="speaker-row"><span></span><span></span><span></span><span></span><span></span><span></span></div>
