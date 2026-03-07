@@ -30,8 +30,43 @@ const POS_W = [
 ];
 const BATTLE_MAX = 3;
 const SLOTS      = 3;
-const SEP        = '─'.repeat(30);
+const SEP        = '─'.repeat(28);
 const SAVE_PFX   = 'kanji_rpg_slot_';
+
+// ボタンアイコン・タイプマッピング
+const BTN_META = {
+  'ぼうけん':             { icon: '⚔', cls: 'type-action' },
+  'たたかう':             { icon: '⚔', cls: 'type-attack' },
+  'たたかう！':           { icon: '⚔', cls: 'type-attack' },
+  'にげる':               { icon: '↩', cls: 'type-flee'   },
+  'なかま':               { icon: '♟', cls: 'type-info'   },
+  'ずかん':               { icon: '◉', cls: 'type-info'   },
+  'ぼうけんのしょ':       { icon: '◈', cls: 'type-info'   },
+  'はい':                 { icon: '✓', cls: 'type-ok'     },
+  'はい！':               { icon: '✓', cls: 'type-ok'     },
+  'する！':               { icon: '✓', cls: 'type-ok'     },
+  'つかう！':             { icon: '✦', cls: 'type-ok'     },
+  'はじめから':           { icon: '▶', cls: 'type-action' },
+  'ぼうけんのしょをよむ': { icon: '◇', cls: 'type-info'  },
+  'なかまにする？はい！': { icon: '✓', cls: 'type-ok'     },
+  'いいえ':               { icon: '✗', cls: 'type-cancel' },
+  'みおくる':             { icon: '✗', cls: 'type-cancel' },
+  'もどる':               { icon: '←', cls: 'type-back'   },
+  'やめる':               { icon: '←', cls: 'type-back'   },
+  'やめた':               { icon: '←', cls: 'type-back'   },
+  '終了':                 { icon: '←', cls: 'type-back'   },
+  'きろくする':           { icon: '◆', cls: 'type-info'   },
+  'よみなおす':           { icon: '◇', cls: 'type-info'   },
+  'さいきんのたたかい':   { icon: '◎', cls: 'type-info'   },
+  '解禁文字リスト':       { icon: '◉', cls: 'type-info'   },
+  'ひらめきマップ':       { icon: '✦', cls: 'type-info'   },
+  'メンバーへんこう':     { icon: '↕', cls: 'type-info'   },
+  'くわしくみる':         { icon: '◎', cls: 'type-info'   },
+  '配合する':             { icon: '⊕', cls: 'type-action' },
+  '続きを見る':           { icon: '▼', cls: 'type-info'   },
+  'パーティに くわえる':  { icon: '+', cls: 'type-ok'     },
+  'パーティから はずす':  { icon: '−', cls: 'type-cancel' },
+};
 
 // ===== ユーティリティ =====
 const randInt  = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
@@ -292,38 +327,106 @@ function printHeader() {
 function hideGraphics() {
   const g = $gfx();
   g.innerHTML = '';
-  g.classList.add('hidden');
+  g.className = 'hidden';
 }
 
-function showGraphics(leftM, leftHp, rightM, rightHp) {
-  const g = $gfx();
-  g.innerHTML = '';
-  g.classList.remove('hidden');
-
-  if (leftM)  g.appendChild(makeMonsterCard(leftM,  leftHp,  '敵'));
-  if (rightM) g.appendChild(makeMonsterCard(rightM, rightHp, '味方'));
-}
-
+// ソロカード（メインメニュー・ステータス等）
 function showSingleCard(monster, hp) {
   const g = $gfx();
   g.innerHTML = '';
-  g.classList.remove('hidden');
-  const card = makeMonsterCard(monster, hp, '');
-  card.style.maxWidth = '160px';
-  card.style.margin = '0 auto';
-  g.appendChild(card);
+  g.className = 'solo-mode';
+  g.appendChild(makeMonsterCard(monster, hp, 'solo'));
 }
 
-function makeMonsterCard(monster, hp, sideLabel) {
-  const rar  = monster.rarity();
-  const elem = monster.elem();
+// バトルグラフィック（敵 VS パーティ全員）
+function showBattleGraphics(enemy, eHp, partyHps) {
+  const g = $gfx();
+  g.innerHTML = '';
+  g.className = 'battle-mode';
+
+  // ─── 敵側 ───
+  const leftDiv = document.createElement('div');
+  leftDiv.className = 'battle-left';
+  leftDiv.appendChild(makeMonsterCard(enemy, eHp, 'enemy'));
+  g.appendChild(leftDiv);
+
+  // ─── 中央 VS ───
+  const center = document.createElement('div');
+  center.className = 'battle-center';
+  const divLine = document.createElement('div');
+  divLine.className = 'battle-center-line';
+  center.appendChild(divLine);
+  const vs = document.createElement('div');
+  vs.className = 'vs-label';
+  vs.textContent = 'VS';
+  center.appendChild(vs);
+  g.appendChild(center);
+
+  // ─── 味方側 ───
+  const rightDiv = document.createElement('div');
+  rightDiv.className = 'battle-right';
+  const cnt = G.battleParty.length;
+  // パーティ数に応じてカンジサイズ調整
+  const kanjiPx = cnt === 1 ? 38 : cnt === 2 ? 28 : 20;
+
+  for (let i = 0; i < cnt; i++) {
+    const hp   = Array.isArray(partyHps) ? partyHps[i] : G.battleParty[i].currentHp;
+    const card = makeMonsterCard(G.battleParty[i], hp, 'party');
+    const kj   = card.querySelector('.card-kanji');
+    if (kj) kj.style.fontSize = kanjiPx + 'px';
+    if (Array.isArray(partyHps) && partyHps[i] <= 0) card.classList.add('ko');
+    rightDiv.appendChild(card);
+  }
+  g.appendChild(rightDiv);
+}
+
+// タイトル画面グラフィック
+function showTitleGraphic() {
+  const g = $gfx();
+  g.innerHTML = '';
+  g.className = 'title-mode';
+
+  const wrap = document.createElement('div');
+  wrap.className = 'title-graphic';
+
+  const sample = sampleN(Object.values(G.allChars).filter(c => c.rarity === 'R'), 3);
+  const row = document.createElement('div');
+  row.className = 'title-kanji-row';
+  for (const ch of sample) {
+    const item = document.createElement('div');
+    item.className = `title-kanji-item ${ELEM_CLASS[ch.element] || 'elem-neutral'}`;
+    item.textContent = ch.char;
+    row.appendChild(item);
+  }
+  wrap.appendChild(row);
+
+  const sub = document.createElement('div');
+  sub.className = 'title-sub';
+  sub.textContent = '文字に力が宿る';
+  wrap.appendChild(sub);
+
+  g.appendChild(wrap);
+}
+
+// モンスターカード生成
+// variant: 'enemy' | 'party' | 'solo'
+function makeMonsterCard(monster, hp, variant) {
+  const rar   = monster.rarity();
+  const elem  = monster.elem();
   const curHp = (hp !== undefined && hp !== null) ? hp : monster.currentHp;
   const maxHp = monster.maxHp;
 
   const card = document.createElement('div');
-  card.className = `monster-card rarity-${rar}`;
+  if (variant === 'enemy') {
+    card.className = `monster-card enemy-card rarity-${rar}`;
+  } else if (variant === 'party') {
+    card.className = `monster-card party-card rarity-${rar}`;
+  } else {
+    card.className = `monster-card solo-card rarity-${rar}`;
+  }
 
   // サイドラベル
+  const sideLabel = variant === 'enemy' ? 'てき' : variant === 'party' ? 'みかた' : '';
   if (sideLabel) {
     const sl = document.createElement('div');
     sl.className = 'card-side-label';
@@ -343,10 +446,10 @@ function makeMonsterCard(monster, hp, sideLabel) {
   elemDiv.textContent = (ELEM_JP[elem] || '?') + '属性';
   card.appendChild(elemDiv);
 
-  // 大きなカンジ
+  // 大カンジ
   const kanjiDiv = document.createElement('div');
-  const nameChars = [...monster.name];
-  const lenCls = nameChars.length === 1 ? '' : nameChars.length === 2 ? 'len2' : 'len3';
+  const len = [...monster.name].length;
+  const lenCls = len === 1 ? '' : len === 2 ? 'len2' : 'len3';
   kanjiDiv.className = `card-kanji ${lenCls} ${ELEM_CLASS[elem] || 'elem-neutral'}`;
   kanjiDiv.textContent = monster.name;
   card.appendChild(kanjiDiv);
@@ -354,65 +457,29 @@ function makeMonsterCard(monster, hp, sideLabel) {
   // HP バー
   const hpWrap = document.createElement('div');
   hpWrap.className = 'card-hp-wrap';
-
   const hpLabel = document.createElement('div');
   hpLabel.className = 'card-hp-label';
   hpLabel.innerHTML = `<span>HP</span><span>${curHp}/${maxHp}</span>`;
   hpWrap.appendChild(hpLabel);
-
   const hpBar = document.createElement('div');
   hpBar.className = 'card-hp-bar';
   const hpFill = document.createElement('div');
   const ratio = maxHp > 0 ? Math.max(0, Math.min(1, curHp / maxHp)) : 0;
   const pct   = Math.round(ratio * 100);
-  let fillCls = '';
-  if (ratio <= 0.15) fillCls = 'hp-crit';
-  else if (ratio <= 0.35) fillCls = 'hp-low';
-  else if (ratio <= 0.65) fillCls = 'hp-mid';
+  const fillCls = ratio <= 0.15 ? 'hp-crit' : ratio <= 0.35 ? 'hp-low' : ratio <= 0.65 ? 'hp-mid' : '';
   hpFill.className = `card-hp-fill ${fillCls}`;
   hpFill.style.width = pct + '%';
   hpBar.appendChild(hpFill);
   hpWrap.appendChild(hpBar);
   card.appendChild(hpWrap);
 
-  // 名前・Lv
+  // Lv
   const nameDiv = document.createElement('div');
   nameDiv.className = 'card-name';
   nameDiv.textContent = `Lv${monster.level}`;
   card.appendChild(nameDiv);
 
   return card;
-}
-
-// タイトル画面グラフィック
-function showTitleGraphic() {
-  const g = $gfx();
-  g.innerHTML = '';
-  g.classList.remove('hidden');
-
-  const wrap = document.createElement('div');
-  wrap.className = 'title-graphic';
-
-  // ランダムに3文字のカンジカードを表示
-  const sample = sampleN(Object.values(G.allChars).filter(c => c.rarity === 'R'), 3);
-  const row = document.createElement('div');
-  row.className = 'title-kanji-row';
-  for (const ch of sample) {
-    const item = document.createElement('div');
-    item.className = `title-kanji-item ${ELEM_CLASS[ch.element] || 'elem-neutral'}`;
-    item.textContent = ch.char;
-    row.appendChild(item);
-  }
-  wrap.appendChild(row);
-
-  const sub = document.createElement('div');
-  sub.className = 'screen-line mid';
-  sub.textContent = '文字に力が宿る';
-  sub.style.textAlign = 'center';
-  sub.style.marginTop = '6px';
-  wrap.appendChild(sub);
-
-  g.appendChild(wrap);
 }
 
 // ---------- ボタン出力 (メイン) ----------
@@ -433,17 +500,28 @@ function menu(title, choices) {
       bc.appendChild(t);
     }
 
-    // グリッドレイアウトを自動判定
+    // グリッドレイアウト自動判定
     const grid = document.createElement('div');
-    const cols = choices.length === 1 ? 'cols-1'
-               : choices.length <= 4 && choices.every(c => c.length <= 9) ? 'cols-2'
-               : 'cols-1';
+    const n = choices.length;
+    let cols = 'cols-1';
+    if (n === 2) cols = 'cols-2';
+    else if (n === 3) cols = 'cols-2-1';
+    else if (n === 4) cols = 'cols-2';
     grid.className = `action-grid ${cols}`;
 
     choices.forEach((c, i) => {
-      const btn = document.createElement('button');
-      btn.className = 'action-btn';
-      btn.textContent = c;
+      const meta = BTN_META[c.trim()];
+      const btn  = document.createElement('button');
+      btn.className = 'action-btn' + (meta ? ' ' + meta.cls : '');
+      if (meta?.icon) {
+        const icon = document.createElement('span');
+        icon.className = 'btn-icon';
+        icon.textContent = meta.icon;
+        btn.appendChild(icon);
+        btn.appendChild(document.createTextNode(c));
+      } else {
+        btn.textContent = c;
+      }
       btn.onclick = () => resolveMenu(i);
       grid.appendChild(btn);
     });
@@ -704,7 +782,7 @@ async function explore() {
   const rar   = enemy.rarity();
 
   clearScreen();
-  showGraphics(enemy, enemy.currentHp, leader(), leader().currentHp);
+  showBattleGraphics(enemy, enemy.currentHp, G.battleParty.map(m => m.currentHp));
   print();
   print(`  やせいの 「${enemy.name}」 が あらわれた！`, 'bright');
   print(`  [${rar}]  ${ELEM_JP[enemy.elem()] || '?'}属性  Lv${enemy.level}`);
@@ -759,7 +837,7 @@ async function doBattle(enemy) {
   const log     = [];
 
   function refreshBattleGraphics() {
-    showGraphics(enemy, eHp, G.battleParty[0], partyHp[0]);
+    showBattleGraphics(enemy, eHp, partyHp);
   }
 
   function showBattleStatus() {
@@ -1104,7 +1182,19 @@ async function breed() {
   if (!p2) return;
 
   clearScreen();
-  showGraphics(p1, p1.currentHp, p2, p2.currentHp);
+  // 配合確認: 2体を並べて表示
+  const gfx = $gfx();
+  gfx.innerHTML = '';
+  gfx.className = 'battle-mode';
+  const bl = document.createElement('div'); bl.className = 'battle-left';
+  bl.appendChild(makeMonsterCard(p1, p1.currentHp, 'solo'));
+  gfx.appendChild(bl);
+  const bc2 = document.createElement('div'); bc2.className = 'battle-center';
+  const vsTxt = document.createElement('div'); vsTxt.className = 'vs-label'; vsTxt.textContent = '×';
+  bc2.appendChild(vsTxt); gfx.appendChild(bc2);
+  const br = document.createElement('div'); br.className = 'battle-right';
+  const rc = makeMonsterCard(p2, p2.currentHp, 'solo'); rc.style.flex = '1'; br.appendChild(rc);
+  gfx.appendChild(br);
   print();
   print(`  ${p1.name}  ×  ${p2.name}`, 'bright');
   print(`  [${p1.rarity()}]       [${p2.rarity()}]`);
