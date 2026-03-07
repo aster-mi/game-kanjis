@@ -308,16 +308,16 @@ body {
   50%       { box-shadow: 0 0 24px rgba(255,112,64,0.55), inset 0 0 22px rgba(255,112,64,0.15); }
 }
 
-/* バッジ */
+/* バッジ（レアリティアイコン） */
 .card-badge {
   position: absolute;
   top: 3px; right: 4px;
-  font-size: 8px;
+  font-size: 10px;
   padding: 1px 4px;
   border-radius: 3px;
   background: var(--surface3);
   color: var(--text-mid);
-  line-height: 13px;
+  line-height: 14px;
   border: 1px solid var(--border2);
 }
 .monster-card.rarity-R  .card-badge { color: var(--rar-r);  border-color: var(--rar-r); }
@@ -335,12 +335,12 @@ body {
 .enemy-card .card-side-label { color: var(--enemy-col); opacity: 0.7; }
 .party-card .card-side-label { color: var(--party-col); opacity: 0.7; }
 
-/* 属性ラベル */
+/* 属性ラベル（アイコン化） */
 .card-elem {
-  font-size: 8px;
+  font-size: 11px;
   color: var(--text-mid);
-  margin-bottom: 1px;
-  letter-spacing: 1px;
+  margin-bottom: 0;
+  letter-spacing: 0;
 }
 
 /* 大カンジ */
@@ -623,6 +623,106 @@ body {
   gap: 5px;
   padding: 5px 5px 0;
   border-top: 1px solid var(--border);
+}
+
+/* ===========================
+   ひらめきマップ カード
+   =========================== */
+.insp-map-wrap { padding: 8px 8px 0; }
+
+.insp-map-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.insp-map-title-text { font-size: 12px; color: var(--text-mid); }
+.insp-map-count      { font-size: 10px; color: var(--text-dim); }
+
+.insp-card {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  background: var(--surface2);
+  gap: 6px;
+}
+.insp-card.insp-unlocked { border-color: var(--border2); }
+
+/* 入力文字群 */
+.insp-inputs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+.insp-plus {
+  font-size: 11px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+/* 各文字ブロック（入力） */
+.insp-char-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.insp-kanji-box {
+  width: 30px; height: 30px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+  background: rgba(255,255,255,0.02);
+}
+.insp-kanji-box.insp-locked-char { opacity: 0.28; filter: grayscale(0.9); }
+.insp-char-label {
+  font-size: 9px;
+  color: var(--text-dim);
+}
+
+/* 矢印 */
+.insp-arrow {
+  font-size: 11px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+/* 出力文字ブロック */
+.insp-output-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.insp-output-box {
+  width: 40px; height: 40px;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  line-height: 1;
+  background: rgba(255,255,255,0.02);
+}
+.insp-output-box.insp-output-glow {
+  filter: drop-shadow(0 0 6px currentColor);
+  background: rgba(255,255,255,0.05);
+}
+.insp-output-label {
+  font-size: 9px;
+  color: var(--text-dim);
 }
 
 /* ===== Animations ===== */

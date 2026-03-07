@@ -23,6 +23,11 @@ const ELEM_ADV = {
 const RARITY_ORDER   = { N:1, R:2, SR:3, SSR:4 };
 const RARITY_RECRUIT = { N:1.2, R:1.0, SR:0.7, SSR:0.4 };
 const RARITY_LIST    = ['N','R','SR','SSR'];
+const RARITY_ICON    = { N: '·', R: '◆', SR: '★', SSR: '✦' };
+const ELEM_ICON      = {
+  fire:'🔥', water:'💧', thunder:'⚡', ice:'❄',
+  earth:'🪨', wind:'🌀', light:'✨', dark:'🌑', neutral:'○',
+};
 const POS_W = [
   {hp:1.0, atk:1.5, def_:1.0, spd:0.8},
   {hp:1.2, atk:0.8, def_:1.5, spd:1.0},
@@ -469,16 +474,16 @@ function makeMonsterCard(monster, hp, variant) {
     card.appendChild(sl);
   }
 
-  // レア度バッジ
+  // レア度バッジ（アイコン）
   const badge = document.createElement('div');
   badge.className = 'card-badge';
-  badge.textContent = rar;
+  badge.textContent = RARITY_ICON[rar] || rar;
   card.appendChild(badge);
 
-  // 属性
+  // 属性アイコン
   const elemDiv = document.createElement('div');
   elemDiv.className = 'card-elem';
-  elemDiv.textContent = (ELEM_JP[elem] || '?') + '属性';
+  elemDiv.textContent = ELEM_ICON[elem] || ELEM_JP[elem] || '?';
   card.appendChild(elemDiv);
 
   // 大カンジ
@@ -1404,72 +1409,116 @@ async function zukanChars() {
 }
 
 async function inspTree() {
+  clearScreen();
+
   const recipes = {};
   for (const [key, out] of Object.entries(G.inspMap)) {
     (recipes[out] = recipes[out] || []).push(key.split('|'));
   }
 
-  function charFmt(ch) {
-    const cd  = G.allChars[ch] || {};
-    const rar = cd.rarity || '?';
-    const m   = G.unlocked[ch] ? '★' : ' ';
-    return `${m}${ch}[${rar}]`;
-  }
-
-  const lines = [];
-  function collect(outCh, pfx, visited, depth) {
-    if (!recipes[outCh] || depth > 3) return;
-    const recs = recipes[outCh];
-    recs.forEach((inputs, ri) => {
-      const lastR = ri === recs.length - 1;
-      lines.push(`${pfx}${lastR ? '└─(' : '├─('}${inputs.join(' + ')})`);
-      const cpfx = pfx + (lastR ? '   ' : '│  ');
-      const newVis = new Set([...visited, outCh]);
-      inputs.forEach((inp, ii) => {
-        const lastI = ii === inputs.length - 1;
-        lines.push(`${cpfx}${lastI ? '└─' : '├─'}${charFmt(inp)}`);
-        const ipfx = cpfx + (lastI ? '   ' : '│  ');
-        if (recipes[inp] && !newVis.has(inp)) collect(inp, ipfx, newVis, depth + 1);
-        else if (recipes[inp] && newVis.has(inp)) lines.push(`${ipfx}└─ ※循環`);
-      });
-    });
-  }
-
+  // SSR→SR→R→N順、解禁済み優先でソート
   const sortedOuts = Object.keys(recipes).sort((a, b) => {
     const ra = (G.allChars[a] || {}).rarity || 'N';
     const rb = (G.allChars[b] || {}).rarity || 'N';
-    return (RARITY_ORDER[rb] || 0) - (RARITY_ORDER[ra] || 0);
+    const rd = (RARITY_ORDER[rb] || 0) - (RARITY_ORDER[ra] || 0);
+    if (rd !== 0) return rd;
+    return (G.unlocked[b] ? 1 : 0) - (G.unlocked[a] ? 1 : 0);
   });
 
+  const unlockedCnt = sortedOuts.filter(ch => G.unlocked[ch]).length;
+  const RAR_COL = { R: 'var(--rar-r)', SR: 'var(--rar-sr)', SSR: 'var(--rar-ssr)' };
+
+  const wrap = document.createElement('div');
+  wrap.className = 'insp-map-wrap';
+
+  // ── ヘッダー ──
+  const hdr = document.createElement('div');
+  hdr.className = 'insp-map-header';
+  const hdrL = document.createElement('span');
+  hdrL.className = 'insp-map-title-text';
+  hdrL.textContent = '■ ひらめきマップ';
+  const hdrR = document.createElement('span');
+  hdrR.className = 'insp-map-count';
+  hdrR.textContent = `解禁 ${unlockedCnt} / ${sortedOuts.length}`;
+  hdr.appendChild(hdrL);
+  hdr.appendChild(hdrR);
+  wrap.appendChild(hdr);
+
+  // ── レシピカード一覧 ──
   for (const outCh of sortedOuts) {
-    const cd  = G.allChars[outCh] || {};
-    const rar = cd.rarity || '?';
-    const m   = G.unlocked[outCh] ? ' ★' : '';
-    lines.push('');
-    lines.push(`${outCh} [${rar}]${m}`);
-    collect(outCh, '', new Set([outCh]), 0);
-  }
+    const outCd   = G.allChars[outCh] || {};
+    const outRar  = outCd.rarity || 'N';
+    const outElem = outCd.element || 'neutral';
+    const outOk   = !!G.unlocked[outCh];
 
-  const PAGE = 18;
-  let pageLines = [...lines];
+    for (const inputs of recipes[outCh]) {
+      const card = document.createElement('div');
+      card.className = 'insp-card' + (outOk ? ' insp-unlocked' : '');
 
-  async function showPage() {
-    while (pageLines.length > 0) {
-      clearScreen();
-      print('\n  ■ ひらめきマップ', 'bright');
-      print(`  ★=解禁済み   全${Object.keys(G.inspMap).length}件`);
-      print();
-      const chunk = pageLines.splice(0, PAGE);
-      for (const line of chunk) print(`  ${line}`);
-      if (pageLines.length > 0) {
-        const c = await menu('', ['続きを見る', '終了']);
-        if (c === 1) return;
-      } else {
-        await pause();
+      // 入力文字群
+      const inputsDiv = document.createElement('div');
+      inputsDiv.className = 'insp-inputs';
+
+      for (let i = 0; i < inputs.length; i++) {
+        if (i > 0) {
+          const plus = document.createElement('span');
+          plus.className = 'insp-plus';
+          plus.textContent = '+';
+          inputsDiv.appendChild(plus);
+        }
+        const inCh  = inputs[i];
+        const inCd  = G.allChars[inCh] || {};
+        const inRar = inCd.rarity || '?';
+        const inOk  = !!G.unlocked[inCh];
+
+        const block = document.createElement('div');
+        block.className = 'insp-char-block';
+
+        const box = document.createElement('div');
+        box.className = `insp-kanji-box ${ELEM_CLASS[inCd.element] || 'elem-neutral'}${inOk ? '' : ' insp-locked-char'}`;
+        box.textContent = inCh;
+
+        const lbl = document.createElement('div');
+        lbl.className = 'insp-char-label';
+        lbl.textContent = RARITY_ICON[inRar] || inRar;
+        if (RAR_COL[inRar]) lbl.style.color = RAR_COL[inRar];
+
+        block.appendChild(box);
+        block.appendChild(lbl);
+        inputsDiv.appendChild(block);
       }
+      card.appendChild(inputsDiv);
+
+      // 矢印
+      const arrow = document.createElement('div');
+      arrow.className = 'insp-arrow';
+      arrow.textContent = '▶';
+      card.appendChild(arrow);
+
+      // 出力文字
+      const outBlock = document.createElement('div');
+      outBlock.className = 'insp-output-block';
+
+      const outBox = document.createElement('div');
+      outBox.className = `insp-output-box ${ELEM_CLASS[outElem] || 'elem-neutral'}${outOk ? ' insp-output-glow' : ''}`;
+      if (RAR_COL[outRar]) outBox.style.borderColor = RAR_COL[outRar];
+      outBox.textContent = outCh;
+
+      const outLbl = document.createElement('div');
+      outLbl.className = 'insp-output-label';
+      outLbl.textContent = (RARITY_ICON[outRar] || outRar) + (outOk ? '  解禁✓' : '  未解禁');
+      if (outOk && RAR_COL[outRar]) outLbl.style.color = RAR_COL[outRar];
+
+      outBlock.appendChild(outBox);
+      outBlock.appendChild(outLbl);
+      card.appendChild(outBlock);
+
+      wrap.appendChild(card);
     }
   }
-  await showPage();
+
+  $text().appendChild(wrap);
+  await pause('  ← もどる');
 }
 
 // ===== エントリポイント =====
