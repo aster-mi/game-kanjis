@@ -499,6 +499,36 @@ body {
   border-color: var(--btn-attack-brd);
   color: var(--btn-attack-txt);
 }
+.type-magic {
+  background: rgba(160,80,255,0.12);
+  border-color: rgba(160,80,255,0.55);
+  color: #CC88FF;
+}
+.type-heal {
+  background: rgba(40,200,100,0.12);
+  border-color: rgba(40,200,100,0.55);
+  color: #44EE88;
+}
+.type-guard {
+  background: rgba(80,140,60,0.12);
+  border-color: rgba(80,180,60,0.50);
+  color: #88CC55;
+}
+.type-debuff {
+  background: rgba(80,20,100,0.15);
+  border-color: rgba(160,40,200,0.50);
+  color: #CC66EE;
+}
+.type-swift {
+  background: rgba(40,180,200,0.12);
+  border-color: rgba(40,200,220,0.50);
+  color: #44CCDD;
+}
+.type-boost {
+  background: rgba(255,160,40,0.12);
+  border-color: rgba(255,180,40,0.50);
+  color: #FFBB44;
+}
 .type-ok {
   background: var(--btn-ok-bg);
   border-color: var(--btn-ok-brd);
@@ -636,6 +666,50 @@ body {
   border-radius: 3px;
   padding: 0 3px;
   line-height: 1.4;
+}
+
+/* スキルラベル（まほう・まもり等） */
+.b-skill {
+  font-size: 9px;
+  border-radius: 3px;
+  padding: 0 3px;
+  white-space: nowrap;
+  line-height: 1.5;
+  border: 1px solid currentColor;
+}
+.b-skill-magic  { color: #CC88FF; background: rgba(160,80,255,0.12); }
+.b-skill-heal   { color: #44EE88; background: rgba(40,200,100,0.12); }
+.b-skill-guard  { color: #88CC55; background: rgba(80,180,60,0.12);  }
+.b-skill-debuff { color: #CC66EE; background: rgba(160,40,200,0.12); }
+.b-skill-swift  { color: #44CCDD; background: rgba(40,200,220,0.12); }
+.b-skill-boost  { color: #FFBB44; background: rgba(255,160,40,0.12); }
+
+/* かいふく数値（緑） */
+.b-heal {
+  color: #44EE88;
+  text-shadow: 0 0 6px rgba(40,200,100,0.5);
+}
+
+/* じゅもん DOWN タグ */
+.b-debuff-tag {
+  font-size: 9px;
+  color: #CC66EE;
+  background: rgba(160,40,200,0.12);
+  border: 1px solid rgba(160,40,200,0.40);
+  border-radius: 3px;
+  padding: 0 3px;
+  white-space: nowrap;
+}
+
+/* まもり中タグ */
+.b-guard-tag {
+  font-size: 9px;
+  color: #88CC55;
+  background: rgba(80,180,60,0.12);
+  border: 1px solid rgba(80,180,60,0.40);
+  border-radius: 3px;
+  padding: 0 3px;
+  white-space: nowrap;
 }
 
 /* ===========================

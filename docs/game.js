@@ -77,7 +77,46 @@ const BTN_META = {
   '続きを見る':           { icon: '▼', cls: 'type-info'   },
   'パーティに くわえる':  { icon: '+', cls: 'type-ok'     },
   'パーティから はずす':  { icon: '−', cls: 'type-cancel' },
+  '⚔こうげき':           { icon: '⚔', cls: 'type-attack'  },
+  '✨まほう':             { icon: '✨', cls: 'type-magic'   },
+  '💊かいふく':           { icon: '💊', cls: 'type-heal'    },
+  '🛡まもり':             { icon: '🛡', cls: 'type-guard'   },
+  '☠じゅもん':           { icon: '☠', cls: 'type-debuff'  },
+  '💨れんげき':           { icon: '💨', cls: 'type-swift'   },
+  '◉きあい':             { icon: '◉', cls: 'type-boost'   },
 };
+
+// ===== スキル定義 =====
+const SKILL_DEFS = {
+  attack: { id: 'attack', name: 'こうげき', icon: '⚔' },
+  magic:  { id: 'magic',  name: 'まほう',   icon: '✨' },
+  heal:   { id: 'heal',   name: 'かいふく', icon: '💊' },
+  guard:  { id: 'guard',  name: 'まもり',   icon: '🛡' },
+  debuff: { id: 'debuff', name: 'じゅもん', icon: '☠' },
+  swift:  { id: 'swift',  name: 'れんげき', icon: '💨' },
+  boost:  { id: 'boost',  name: 'きあい',   icon: '◉' },
+};
+const ROLE_SKILL = {
+  attack:  'magic',
+  defense: 'guard',
+  speed:   'swift',
+  debuff:  'debuff',
+  heal:    'heal',
+  utility: 'boost',
+};
+
+function getSkills(monster) {
+  const skills = [SKILL_DEFS.attack];
+  const seen   = new Set(['attack']);
+  for (const ch of monster.chars) {
+    const sid = ROLE_SKILL[ch.role];
+    if (sid && !seen.has(sid)) {
+      seen.add(sid);
+      skills.push(SKILL_DEFS[sid]);
+    }
+  }
+  return skills;
+}
 
 // ===== ユーティリティ =====
 const randInt  = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
@@ -348,46 +387,73 @@ function printHeader() {
 }
 
 // ---------- バトルログ表示ヘルパー ----------
-function printBattleAttack(atkName, atkElem, isParty, tgtName, tgtElem, dmg, adv) {
+// d = { type, isParty, atkName, atkElem, tgtName, tgtElem, dmg, adv, healAmt, hit, guarded, debuffStacks }
+function printBattleAction(d) {
   const line = document.createElement('div');
   line.className = 'b-line';
 
   // 攻撃者バッジ
-  const aSpan = document.createElement('span');
-  aSpan.className = `b-name ${ELEM_CLASS[atkElem] || ''} ${isParty ? 'b-name-p' : 'b-name-e'}`;
-  aSpan.textContent = `${ELEM_ICON[atkElem] || ''} ${atkName}`;
+  line.appendChild(makeNameBadge(d.atkName, d.atkElem, d.isParty ? 'party' : 'enemy'));
+
+  // スキルラベル（通常攻撃以外）
+  if (d.type && d.type !== 'attack') {
+    const sk = SKILL_DEFS[d.type];
+    if (sk) {
+      const skSpan = document.createElement('span');
+      skSpan.className = `b-skill b-skill-${d.type}`;
+      skSpan.textContent = sk.icon + sk.name;
+      line.appendChild(skSpan);
+    }
+  }
 
   // 矢印
   const arr = document.createElement('span');
   arr.className = 'b-arr';
   arr.textContent = '→';
+  line.appendChild(arr);
 
   // 対象バッジ
-  const tSpan = document.createElement('span');
-  tSpan.className = `b-name ${ELEM_CLASS[tgtElem] || ''} ${isParty ? 'b-name-e' : 'b-name-p'}`;
-  tSpan.textContent = `${ELEM_ICON[tgtElem] || ''} ${tgtName}`;
+  line.appendChild(makeNameBadge(d.tgtName, d.tgtElem, d.isParty ? 'enemy' : 'party'));
 
-  // ダメージ数値
-  const dmgSpan = document.createElement('span');
-  dmgSpan.className = `b-dmg ${isParty ? 'b-dmg-p' : 'b-dmg-e'}`;
-  dmgSpan.textContent = dmg;
+  if (d.type === 'heal') {
+    // かいふく：緑数値
+    const healSpan = document.createElement('span');
+    healSpan.className = 'b-dmg b-heal';
+    healSpan.textContent = `+${d.healAmt}`;
+    const lbl = document.createElement('span');
+    lbl.className = 'b-lbl';
+    lbl.textContent = 'かいふく';
+    line.appendChild(healSpan);
+    line.appendChild(lbl);
+  } else {
+    // ダメージ系
+    const dmgSpan = document.createElement('span');
+    dmgSpan.className = `b-dmg ${d.isParty ? 'b-dmg-p' : 'b-dmg-e'}`;
+    dmgSpan.textContent = d.dmg;
+    const lbl = document.createElement('span');
+    lbl.className = 'b-lbl';
+    lbl.textContent = d.type === 'swift' ? `${d.hit}hit` : 'ダメージ';
+    line.appendChild(dmgSpan);
+    line.appendChild(lbl);
 
-  // ラベル
-  const lbl = document.createElement('span');
-  lbl.className = 'b-lbl';
-  lbl.textContent = 'ダメージ';
-
-  line.appendChild(aSpan);
-  line.appendChild(arr);
-  line.appendChild(tSpan);
-  line.appendChild(dmgSpan);
-  line.appendChild(lbl);
-
-  if (adv) {
-    const advSpan = document.createElement('span');
-    advSpan.className = 'b-adv';
-    advSpan.textContent = '★ゆうり';
-    line.appendChild(advSpan);
+    if (d.adv) {
+      const advSpan = document.createElement('span');
+      advSpan.className = 'b-adv';
+      advSpan.textContent = '★ゆうり';
+      line.appendChild(advSpan);
+    }
+    if (d.type === 'debuff') {
+      const dbSpan = document.createElement('span');
+      dbSpan.className = 'b-debuff-tag';
+      dbSpan.textContent = `☠こうげき-${Math.min(d.debuffStacks, 3) * 20}%`;
+      line.appendChild(dbSpan);
+    }
+    if (d.guarded) {
+      const gSpan = document.createElement('span');
+      gSpan.className = 'b-guard-tag';
+      gSpan.textContent = '🛡まもり中';
+      line.appendChild(gSpan);
+    }
   }
 
   $text().appendChild(line);
@@ -1007,12 +1073,13 @@ function makeWildEnemy() {
 // ===== バトル =====
 // ===================================================
 async function doBattle(enemy) {
-  const partyHp = G.battleParty.map(m => m.currentHp);
-  let eHp       = enemy.maxHp;
-  let turns     = 0;
-  let flawless  = true;
-  let elemAdv   = false;
-  const log     = [];
+  const partyHp          = G.battleParty.map(m => m.currentHp);
+  let eHp                = enemy.maxHp;
+  let turns              = 0;
+  let flawless           = true;
+  let elemAdv            = false;
+  let enemyDebuffStacks  = 0;   // じゅもん蓄積（最大3）：-20%/stack、永続
+  const log              = [];
 
   function refreshBattleGraphics() {
     showBattleGraphics(enemy, eHp, partyHp);
@@ -1023,6 +1090,9 @@ async function doBattle(enemy) {
     refreshBattleGraphics();
     print();
     print(`  ─ ターン ${turns + 1} ─`, 'mid');
+    if (enemyDebuffStacks > 0) {
+      print(`  ☠ てき こうげき -${enemyDebuffStacks * 20}%`, 'dim');
+    }
     print();
     for (let i = 0; i < G.battleParty.length; i++) {
       const m  = G.battleParty[i];
@@ -1040,9 +1110,16 @@ async function doBattle(enemy) {
 
   while (G.battleParty.some((_, i) => partyHp[i] > 0) && eHp > 0) {
     showBattleStatus();
-    const choice = await menu('どうする？', ['たたかう！', 'にげる']);
 
-    if (choice === 1) {
+    // ── スキルメニューを動的に生成 ──
+    const aliveLeaderIdx = partyHp.findIndex(hp => hp > 0);
+    const currentLeader  = G.battleParty[aliveLeaderIdx] || G.battleParty[0];
+    const skills         = getSkills(currentLeader);
+    const menuItems      = skills.map(s => `${s.icon}${s.name}`).concat(['にげる']);
+    const choice         = await menu('どうする？', menuItems);
+
+    if (choice === menuItems.length - 1) {
+      // にげる
       for (let i = 0; i < G.battleParty.length; i++) G.battleParty[i].currentHp = partyHp[i];
       clearScreen();
       print();
@@ -1053,9 +1130,12 @@ async function doBattle(enemy) {
       return;
     }
 
+    const chosenSkill = skills[choice];
     turns++;
-    const roundData = [];
+    const roundData   = [];
+    let   partyGuard  = false;   // このターン限り
 
+    // ── 行動順を決定 ──
     const actors = G.battleParty
       .map((m, i) => partyHp[i] > 0 ? ['p', i, m.spd] : null)
       .filter(Boolean);
@@ -1064,26 +1144,117 @@ async function doBattle(enemy) {
 
     for (const [kind, ai] of actors) {
       if (eHp <= 0) break;
+
       if (kind === 'p') {
         if (partyHp[ai] <= 0) continue;
-        const m   = G.battleParty[ai];
-        const pm  = elemMult(m.elem(), enemy.elem());
+        const m  = G.battleParty[ai];
+        const pm = elemMult(m.elem(), enemy.elem());
         if (pm > 1.0) elemAdv = true;
-        const dmg = Math.max(1, Math.floor(m.atk * pm) - Math.floor(enemy.def_ / 2));
-        eHp = Math.max(0, eHp - dmg);
         const adv = pm > 1.0;
-        roundData.push({ isParty: true, atkName: m.name, atkElem: m.elem(), tgtName: enemy.name, tgtElem: enemy.elem(), dmg, adv });
-        log.push(`  ${m.name} → ${enemy.name}  ${dmg}ダメージ！${adv ? ' ★ぞくせいゆうり！' : ''}`);
+
+        if (ai === aliveLeaderIdx) {
+          // ── リーダーのスキル使用 ──
+          switch (chosenSkill.id) {
+
+            case 'magic': {
+              // DEFを無視、1.5倍威力の魔法
+              const dmg = Math.max(1, Math.round(m.atk * pm * 1.5));
+              eHp = Math.max(0, eHp - dmg);
+              roundData.push({ type:'magic', isParty:true, atkName:m.name, atkElem:m.elem(), tgtName:enemy.name, tgtElem:enemy.elem(), dmg, adv });
+              log.push(`  ${m.name} まほう → ${enemy.name}  ${dmg}ダメージ！`);
+              break;
+            }
+
+            case 'heal': {
+              // HP%が最低の生存メンバーを回復
+              const healAmt = Math.max(5, Math.floor(m.atk * 0.7));
+              let ti = aliveLeaderIdx;
+              let lowestPct = partyHp[aliveLeaderIdx] / G.battleParty[aliveLeaderIdx].maxHp;
+              for (let j = 0; j < G.battleParty.length; j++) {
+                if (partyHp[j] > 0) {
+                  const pct = partyHp[j] / G.battleParty[j].maxHp;
+                  if (pct < lowestPct) { lowestPct = pct; ti = j; }
+                }
+              }
+              const prev  = partyHp[ti];
+              partyHp[ti] = Math.min(G.battleParty[ti].maxHp, partyHp[ti] + healAmt);
+              const actual = partyHp[ti] - prev;
+              const healed = G.battleParty[ti];
+              roundData.push({ type:'heal', isParty:true, atkName:m.name, atkElem:m.elem(), tgtName:healed.name, tgtElem:healed.elem(), healAmt:actual || healAmt });
+              log.push(`  ${m.name} かいふく → ${healed.name}  +${actual}HP！`);
+              break;
+            }
+
+            case 'guard': {
+              // 防御態勢：このターン敵ダメ半減 ＋ 弱めの攻撃
+              partyGuard = true;
+              const dmg  = Math.max(1, Math.floor(m.atk * pm * 0.7) - Math.floor(enemy.def_ / 2));
+              eHp = Math.max(0, eHp - dmg);
+              roundData.push({ type:'guard', isParty:true, atkName:m.name, atkElem:m.elem(), tgtName:enemy.name, tgtElem:enemy.elem(), dmg, adv });
+              log.push(`  ${m.name} まもり → ${enemy.name}  ${dmg}ダメージ！`);
+              break;
+            }
+
+            case 'debuff': {
+              // 敵ATKを永続ダウン（最大3スタック）
+              enemyDebuffStacks = Math.min(3, enemyDebuffStacks + 1);
+              const dmg = Math.max(1, Math.floor(m.atk * pm * 0.6) - Math.floor(enemy.def_ / 2));
+              eHp = Math.max(0, eHp - dmg);
+              roundData.push({ type:'debuff', isParty:true, atkName:m.name, atkElem:m.elem(), tgtName:enemy.name, tgtElem:enemy.elem(), dmg, adv, debuffStacks:enemyDebuffStacks });
+              log.push(`  ${m.name} じゅもん → ${enemy.name}  こうげき-${enemyDebuffStacks*20}%！`);
+              break;
+            }
+
+            case 'swift': {
+              // 2連続攻撃（各65%）
+              for (let h = 1; h <= 2; h++) {
+                if (eHp <= 0) break;
+                const dmg = Math.max(1, Math.floor(m.atk * pm * 0.65) - Math.floor(enemy.def_ / 2));
+                eHp = Math.max(0, eHp - dmg);
+                roundData.push({ type:'swift', hit:h, isParty:true, atkName:m.name, atkElem:m.elem(), tgtName:enemy.name, tgtElem:enemy.elem(), dmg, adv });
+                log.push(`  ${m.name} れんげき${h}hit → ${enemy.name}  ${dmg}ダメージ！`);
+              }
+              break;
+            }
+
+            case 'boost': {
+              // きあい：ATK1.5倍で攻撃
+              const dmg = Math.max(1, Math.floor(m.atk * pm * 1.5) - Math.floor(enemy.def_ / 2));
+              eHp = Math.max(0, eHp - dmg);
+              roundData.push({ type:'boost', isParty:true, atkName:m.name, atkElem:m.elem(), tgtName:enemy.name, tgtElem:enemy.elem(), dmg, adv });
+              log.push(`  ${m.name} きあい → ${enemy.name}  ${dmg}ダメージ！`);
+              break;
+            }
+
+            default: { // 'attack'
+              const dmg = Math.max(1, Math.floor(m.atk * pm) - Math.floor(enemy.def_ / 2));
+              eHp = Math.max(0, eHp - dmg);
+              roundData.push({ type:'attack', isParty:true, atkName:m.name, atkElem:m.elem(), tgtName:enemy.name, tgtElem:enemy.elem(), dmg, adv });
+              log.push(`  ${m.name} → ${enemy.name}  ${dmg}ダメージ！${adv ? ' ★ぞくせいゆうり！' : ''}`);
+              break;
+            }
+          }
+        } else {
+          // ── サブメンバーは自動攻撃 ──
+          const dmg = Math.max(1, Math.floor(m.atk * pm) - Math.floor(enemy.def_ / 2));
+          eHp = Math.max(0, eHp - dmg);
+          roundData.push({ type:'attack', isParty:true, atkName:m.name, atkElem:m.elem(), tgtName:enemy.name, tgtElem:enemy.elem(), dmg, adv });
+          log.push(`  ${m.name} → ${enemy.name}  ${dmg}ダメージ！${adv ? ' ★ぞくせいゆうり！' : ''}`);
+        }
+
       } else {
+        // ── 敵の攻撃 ──
         const alive = partyHp.map((hp, i) => hp > 0 ? i : -1).filter(i => i >= 0);
         if (!alive.length) break;
         const ti  = pickRnd(alive);
         const tgt = G.battleParty[ti];
         const em  = elemMult(enemy.elem(), tgt.elem());
-        const dmg = Math.max(1, Math.floor(enemy.atk * em) - Math.floor(tgt.def_ / 2));
+        const debuffMult = Math.max(0.4, 1 - enemyDebuffStacks * 0.2);
+        let   dmg = Math.max(1, Math.floor(enemy.atk * em * debuffMult) - Math.floor(tgt.def_ / 2));
+        if (partyGuard) dmg = Math.max(1, Math.floor(dmg * 0.5));
         partyHp[ti] = Math.max(0, partyHp[ti] - dmg);
         flawless = false;
-        roundData.push({ isParty: false, atkName: enemy.name, atkElem: enemy.elem(), tgtName: tgt.name, tgtElem: tgt.elem(), dmg, adv: false });
+        roundData.push({ type:'attack', isParty:false, atkName:enemy.name, atkElem:enemy.elem(), tgtName:tgt.name, tgtElem:tgt.elem(), dmg, adv:false, guarded:partyGuard });
         log.push(`  ${enemy.name} → ${tgt.name}  ${dmg}ダメージ！`);
       }
     }
@@ -1093,7 +1264,7 @@ async function doBattle(enemy) {
     refreshBattleGraphics();
     print();
     for (const d of roundData) {
-      printBattleAttack(d.atkName, d.atkElem, d.isParty, d.tgtName, d.tgtElem, d.dmg, d.adv);
+      printBattleAction(d);
     }
 
     if (G.battleParty.some((_, i) => partyHp[i] > 0) && eHp > 0) {
