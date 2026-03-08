@@ -2,23 +2,532 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>文字モンスター育成RPG</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #080C14;
+      --surface:   #0C1018;
+      --surface2:  #111825;
+      --surface3:  #182234;
+      --border:    #1C2D44;
+      --border2:   #2A4060;
+      --accent:    #4A80FF;
+      --accent2:   #7AA4FF;
+      --text:      #C8D8F0;
+      --text-mid:  #90A8C8;
+      --text-dim:  #4A6080;
+      --rar-r:     #44AAFF;
+      --rar-sr:    #F4C840;
+      --rar-ssr:   #EE88FF;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DotGothic16', monospace;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    /* ─── 背景に漂う漢字 ─── */
+    #kanji-bg {
+      position: fixed; inset: 0;
+      pointer-events: none; overflow: hidden; z-index: 0;
+    }
+    .kj {
+      position: absolute; bottom: -10vh;
+      color: var(--accent);
+      opacity: 0;
+      animation: floatUp linear infinite;
+      user-select: none;
+    }
+    @keyframes floatUp {
+      0%   { transform: translateY(0)       rotate(0deg);   opacity: 0; }
+      8%   { opacity: 0.055; }
+      92%  { opacity: 0.055; }
+      100% { transform: translateY(-115vh)  rotate(25deg);  opacity: 0; }
+    }
+
+    /* ─── HERO ─── */
+    .hero {
+      position: relative; z-index: 1;
+      min-height: 100svh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center;
+      padding: 4rem 1.5rem 5rem;
+    }
+    .hero::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% 45%,
+        rgba(74,128,255,.13) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .badge {
+      position: relative; z-index: 1;
+      font-size: .6rem; letter-spacing: .18em;
+      color: var(--text-dim);
+      border: 1px solid var(--border2);
+      border-radius: 20px;
+      padding: 4px 14px;
+      margin-bottom: 2rem;
+      background: rgba(74,128,255,.05);
+    }
+
+    .hero-sub {
+      position: relative; z-index: 1;
+      font-size: clamp(.55rem, 1.8vw, .72rem);
+      letter-spacing: .28em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: .7rem;
+    }
+
+    .hero-title {
+      position: relative; z-index: 1;
+      font-size: clamp(2.4rem, 9vw, 5rem);
+      line-height: 1.15;
+      margin-bottom: 1.4rem;
+      background: linear-gradient(135deg,
+        #7AA4FF 0%, #D0E4FF 40%, #CC88FF 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 40px rgba(74,128,255,.35));
+    }
+
+    .hero-desc {
+      position: relative; z-index: 1;
+      font-size: clamp(.78rem, 2.5vw, .95rem);
+      color: var(--text-mid);
+      line-height: 2.1;
+      max-width: 480px;
+      margin-bottom: 2.6rem;
+    }
+    .hero-desc em { color: #9DC4FF; font-style: normal; }
+
+    .btn-play {
+      position: relative; z-index: 1;
+      display: inline-block;
+      text-decoration: none;
+      font-family: 'DotGothic16', monospace;
+      font-size: clamp(.85rem, 2.5vw, 1rem);
+      color: #fff;
+      background: linear-gradient(135deg, #2A58D8 0%, #5530B0 100%);
+      border: 1px solid rgba(130,170,255,.35);
+      padding: 14px 44px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform .18s, box-shadow .18s;
+      box-shadow:
+        0 0 24px rgba(74,128,255,.22),
+        inset 0 1px 0 rgba(255,255,255,.12);
+      letter-spacing: .08em;
+    }
+    .btn-play:hover {
+      transform: translateY(-3px);
+      box-shadow:
+        0 6px 32px rgba(74,128,255,.38),
+        inset 0 1px 0 rgba(255,255,255,.18);
+    }
+    .btn-play:active { transform: translateY(-1px); }
+
+    .scroll-hint {
+      position: absolute; bottom: 1.8rem; left: 50%;
+      transform: translateX(-50%);
+      font-size: .58rem; letter-spacing: .2em;
+      color: var(--text-dim);
+      animation: blink 2.2s ease-in-out infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:.25} 50%{opacity:.75} }
+
+    /* ─── 共通 ─── */
+    .wrap {
+      position: relative; z-index: 1;
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 5rem 1.5rem;
+    }
+    .sec-label {
+      font-size: .58rem; letter-spacing: .22em;
+      color: var(--text-dim); text-transform: uppercase;
+      margin-bottom: .5rem;
+    }
+    .sec-title {
+      font-size: clamp(1.25rem, 4vw, 1.9rem);
+      color: var(--text);
+      margin-bottom: .5rem;
+    }
+    .accent-bar {
+      display: block; width: 36px; height: 2px;
+      background: linear-gradient(to right, var(--accent), #AA66FF);
+      border-radius: 1px;
+      margin: .8rem 0 1.6rem;
+    }
+    .sec-desc {
+      font-size: .72rem; color: var(--text-mid);
+      line-height: 2.1; max-width: 540px;
+      margin-bottom: 2.5rem;
+    }
+    .divider {
+      height: 1px;
+      background: linear-gradient(to right,
+        transparent, var(--border2) 30%, var(--border2) 70%, transparent);
+    }
+
+    /* ─── STEPS ─── */
+    .steps { display: flex; flex-direction: column; gap: .85rem; }
+
+    .step {
+      display: flex; align-items: flex-start; gap: 1.1rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.15rem 1.4rem;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .step:hover {
+      border-color: var(--border2);
+      box-shadow: 0 0 18px rgba(74,128,255,.07);
+    }
+
+    .step-num {
+      font-size: .6rem; color: var(--accent);
+      border: 1px solid rgba(74,128,255,.35);
+      border-radius: 50%;
+      width: 26px; height: 26px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 3px;
+    }
+    .step-icon { font-size: 1.55rem; flex-shrink: 0; }
+    .step-name { font-size: .88rem; color: var(--text); margin-bottom: .25rem; }
+    .step-text { font-size: .7rem; color: var(--text-mid); line-height: 2; }
+    .step-text em { color: #9DC4FF; font-style: normal; }
+
+    /* ─── ELEMENTS ─── */
+    .elem-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: .65rem;
+      margin-bottom: 3.5rem;
+    }
+    @media(min-width:480px){ .elem-grid { grid-template-columns: repeat(5, 1fr); } }
+    @media(min-width:700px){ .elem-grid { grid-template-columns: repeat(9, 1fr); } }
+
+    .elem-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .85rem .4rem;
+      text-align: center;
+      transition: transform .12s;
+    }
+    .elem-card:hover { transform: translateY(-3px); }
+    .elem-card .ic { font-size: 1.4rem; display: block; margin-bottom: .35rem; line-height: 1; }
+    .elem-card .nm { font-size: .58rem; line-height: 1.4; }
+
+    /* ─── RARITY ─── */
+    .rar-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: .65rem;
+    }
+    @media(min-width:560px){ .rar-grid { grid-template-columns: repeat(4, 1fr); } }
+
+    .rar-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.1rem;
+    }
+    .rar-icon { font-size: 1.3rem; margin-bottom: .4rem; display: block; }
+    .rar-name { font-size: .78rem; margin-bottom: .2rem; }
+    .rar-desc { font-size: .62rem; color: var(--text-dim); line-height: 1.8; }
+
+    /* ─── FEATURES ─── */
+    .feat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      gap: .85rem;
+    }
+    .feat-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.35rem 1.4rem;
+      transition: border-color .15s;
+    }
+    .feat-card:hover { border-color: var(--border2); }
+    .feat-icon { font-size: 1.7rem; margin-bottom: .65rem; display: block; }
+    .feat-title { font-size: .83rem; margin-bottom: .35rem; }
+    .feat-desc { font-size: .68rem; color: var(--text-mid); line-height: 2; }
+    .feat-desc em { color: #9DC4FF; font-style: normal; }
+
+    /* ─── FOOTER CTA ─── */
+    .footer-cta {
+      position: relative; z-index: 1;
+      text-align: center;
+      padding: 5rem 1.5rem 6rem;
+    }
+    .footer-cta::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 70% 80% at 50% 50%,
+        rgba(74,128,255,.07) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .footer-cta h2 {
+      font-size: clamp(1.15rem, 4vw, 1.75rem);
+      margin-bottom: .8rem;
+    }
+    .footer-cta p {
+      font-size: .7rem; color: var(--text-dim);
+      line-height: 2.2; margin-bottom: 2.2rem;
+    }
+    .footer-note {
+      margin-top: 2.2rem;
+      font-size: .58rem;
+      color: var(--text-dim);
+      line-height: 2;
+    }
+  </style>
 </head>
 <body>
-  <div id="screen">
-    <div id="screen-graphics" class="hidden"></div>
-    <div id="screen-text"></div>
-    <div id="screen-buttons">
-      <div class="btn-area-divider"></div>
-      <div id="btn-container"></div>
+
+<!-- 背景漢字 -->
+<div id="kanji-bg"></div>
+
+<!-- ══════════════ HERO ══════════════ -->
+<section class="hero">
+  <div class="badge">▶ ブラウザゲーム &nbsp;·&nbsp; 無料 &nbsp;·&nbsp; 登録不要</div>
+  <p class="hero-sub">Kanji Monster RPG</p>
+  <h1 class="hero-title">文字モンスター<br>育成RPG</h1>
+  <p class="hero-desc">
+    <em>「火」「龍」「閃」</em>——<br>
+    ひとつひとつの文字が、命を持つモンスターになる。<br>
+    あなただけの仲間を育て、世界を冒険しよう。
+  </p>
+  <a href="game.html" class="btn-play">▶&nbsp; ゲームをはじめる</a>
+  <div class="scroll-hint">↓ SCROLL</div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══════════════ HOW TO PLAY ══════════════ -->
+<div class="wrap">
+  <p class="sec-label">How to play</p>
+  <h2 class="sec-title">遊び方はかんたん</h2>
+  <span class="accent-bar"></span>
+  <p class="sec-desc">
+    ボタンを押すだけでどんどん進む。<br>
+    難しい操作は一切なし。文字との出会いを楽しもう。
+  </p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-icon">⚔️</div>
+      <div>
+        <div class="step-name">野生の文字と戦う</div>
+        <div class="step-text">冒険に出ると<em>野生の文字モンスター</em>があらわれる。「たたかう！」を押せば
+          AIが状況に応じて<em>スキルを自動選択</em>。属性の相性がダメージを左右する。</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-icon">💬</div>
+      <div>
+        <div class="step-name">なかまにする</div>
+        <div class="step-text">勝利後、野生の文字を<em>仲間に勧誘</em>できる。レア度が高いほど難しく、
+          有利な戦い方をするほど成功率が上がる。</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-icon">📈</div>
+      <div>
+        <div class="step-name">レベルを上げて強くなる</div>
+        <div class="step-text">戦うたびに経験値を獲得。<em>文字の並び順（1〜3文字目）</em>によって
+          得意なステータスが異なる。強いパーティ編成を考えよう。</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-icon">✨</div>
+      <div>
+        <div class="step-name">ひらめき！で新文字を解禁</div>
+        <div class="step-text"><em>Lv20</em> に達した文字は「ひらめき」を起こす。仲間の文字との
+          組み合わせで<em>新たな文字</em>が解禁され、モンスターが進化できる。49通りの化学反応を探そう。</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-icon">⊕</div>
+      <div>
+        <div class="step-name">配合してオリジナルを作る</div>
+        <div class="step-text">2体を<em>配合</em>すると親の文字を受け継いだ子が誕生。
+          名前の文字と並び順は自由に選べる。世界にひとつだけのモンスターを育てよう。</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ══════════════ ELEMENTS & RARITY ══════════════ -->
+<div class="wrap">
+  <p class="sec-label">Elements</p>
+  <h2 class="sec-title">9つの属性</h2>
+  <span class="accent-bar"></span>
+  <p class="sec-desc">すべての文字モンスターは属性を持つ。相性次第でダメージが大きく変わる。</p>
+
+  <div class="elem-grid">
+    <div class="elem-card" style="border-color:rgba(255,102,68,.3)">
+      <span class="ic">🔥</span><span class="nm" style="color:#FF7755">火</span>
+    </div>
+    <div class="elem-card" style="border-color:rgba(68,170,255,.3)">
+      <span class="ic">💧</span><span class="nm" style="color:#44AAFF">水</span>
+    </div>
+    <div class="elem-card" style="border-color:rgba(255,221,68,.3)">
+      <span class="ic">⚡</span><span class="nm" style="color:#FFDD44">雷</span>
+    </div>
+    <div class="elem-card" style="border-color:rgba(136,221,255,.3)">
+      <span class="ic">❄️</span><span class="nm" style="color:#88DDFF">氷</span>
+    </div>
+    <div class="elem-card" style="border-color:rgba(170,136,68,.3)">
+      <span class="ic">🪨</span><span class="nm" style="color:#BB9944">土</span>
+    </div>
+    <div class="elem-card" style="border-color:rgba(68,221,170,.3)">
+      <span class="ic">🌀</span><span class="nm" style="color:#44DDAA">風</span>
+    </div>
+    <div class="elem-card" style="border-color:rgba(220,220,255,.3)">
+      <span class="ic">✨</span><span class="nm" style="color:#DDDDFF">光</span>
+    </div>
+    <div class="elem-card" style="border-color:rgba(187,68,238,.3)">
+      <span class="ic">🌑</span><span class="nm" style="color:#BB44EE">闇</span>
+    </div>
+    <div class="elem-card" style="border-color:rgba(120,120,120,.3)">
+      <span class="ic" style="font-size:1.1rem;margin-top:.15rem">○</span>
+      <span class="nm" style="color:#888">無</span>
     </div>
   </div>
 
-  <script src="data.js"></script>
-  <script src="game.js"></script>
+  <p class="sec-label">Rarity</p>
+  <h2 class="sec-title">レア度</h2>
+  <span class="accent-bar"></span>
+  <p class="sec-desc">
+    文字にはレア度がある。最初から<em style="color:#9DC4FF">N</em>（ノーマル）121種が解禁されており、
+    冒険を進めるほど上位の文字に出会える。
+  </p>
+  <div class="rar-grid">
+    <div class="rar-card">
+      <span class="rar-icon" style="color:#888">·</span>
+      <div class="rar-name">N ノーマル</div>
+      <div class="rar-desc">最初から使える121種。勧誘しやすく育てやすい。</div>
+    </div>
+    <div class="rar-card" style="border-color:rgba(68,170,255,.25)">
+      <span class="rar-icon" style="color:var(--rar-r)">◆</span>
+      <div class="rar-name" style="color:var(--rar-r)">R レア</div>
+      <div class="rar-desc">冒険で出会える強い文字。ステータスが高め。</div>
+    </div>
+    <div class="rar-card" style="border-color:rgba(244,200,64,.25)">
+      <span class="rar-icon" style="color:var(--rar-sr)">★</span>
+      <div class="rar-name" style="color:var(--rar-sr)">SR スーパーレア</div>
+      <div class="rar-desc">強力でなかまにしにくい。1体いるだけで頼もしい。</div>
+    </div>
+    <div class="rar-card" style="border-color:rgba(238,136,255,.25)">
+      <span class="rar-icon" style="color:var(--rar-ssr)">✦</span>
+      <div class="rar-name" style="color:var(--rar-ssr)">SSR 最高レア</div>
+      <div class="rar-desc">めったに現れない伝説の文字。出会えたら全力で仲間にしよう！</div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ══════════════ FEATURES ══════════════ -->
+<div class="wrap">
+  <p class="sec-label">Features</p>
+  <h2 class="sec-title">ゲームの特長</h2>
+  <span class="accent-bar"></span>
+
+  <div class="feat-grid">
+    <div class="feat-card">
+      <span class="feat-icon">🈵</span>
+      <div class="feat-title">文字がそのままモンスター</div>
+      <div class="feat-desc">「火」「龍」「閃」など<em>157種以上</em>の文字が個性あるモンスターに。
+        漢字の意味がそのまま能力に反映される。</div>
+    </div>
+    <div class="feat-card">
+      <span class="feat-icon">🔤</span>
+      <div class="feat-title">名前＝能力値</div>
+      <div class="feat-desc">モンスター名は<em>1〜3文字</em>で構成。組み合わせる文字と
+        <em>並び順</em>によってステータスが変化する独自システム。</div>
+    </div>
+    <div class="feat-card">
+      <span class="feat-icon">🧬</span>
+      <div class="feat-title">配合で無限の組み合わせ</div>
+      <div class="feat-desc">2体を配合すると<em>親の文字プール</em>から名前を自由に設計できる。
+        進化の方向性はあなた次第。</div>
+    </div>
+    <div class="feat-card">
+      <span class="feat-icon">💡</span>
+      <div class="feat-title">ひらめきシステム</div>
+      <div class="feat-desc">Lv20到達で発動する<em>1回限りのひらめき</em>。
+        文字の組み合わせで新文字が解禁。<em>49通り</em>の化学反応を探そう。</div>
+    </div>
+    <div class="feat-card">
+      <span class="feat-icon">🤖</span>
+      <div class="feat-title">AIオートスキル</div>
+      <div class="feat-desc">「たたかう！」を押せばAIが状況を判断して
+        <em>まほう・かいふく・まもり</em>などを自動選択。文字の役割が戦略を決める。</div>
+    </div>
+    <div class="feat-card">
+      <span class="feat-icon">💾</span>
+      <div class="feat-title">セーブ＆ロード</div>
+      <div class="feat-desc"><em>3スロット</em>対応のセーブシステム。
+        ブラウザに自動保存されるので、いつでも続きから遊べる。</div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ══════════════ FOOTER CTA ══════════════ -->
+<section class="footer-cta">
+  <h2>さあ、冒険をはじめよう</h2>
+  <p>登録・インストール不要。<br>ブラウザがあればすぐに遊べる。</p>
+  <a href="game.html" class="btn-play">▶&nbsp; ゲームをはじめる</a>
+  <div class="footer-note">
+    ※ セーブデータはブラウザの localStorage に保存されます。<br>
+    ブラウザデータを削除するとセーブが消えます。
+  </div>
+</section>
+
+<script>
+  const KANJI = '火水雷氷土風光闇龍剣魔閃炎波電嵐岩翼聖邪命力速防癒幻'.split('');
+  const bg = document.getElementById('kanji-bg');
+  for (let i = 0; i < 22; i++) {
+    const el = document.createElement('div');
+    el.className = 'kj';
+    el.textContent = KANJI[Math.floor(Math.random() * KANJI.length)];
+    el.style.left             = (Math.random() * 100) + 'vw';
+    el.style.fontSize         = (.9 + Math.random() * 2.2) + 'rem';
+    el.style.animationDuration = (18 + Math.random() * 28) + 's';
+    el.style.animationDelay   = -(Math.random() * 46) + 's';
+    bg.appendChild(el);
+  }
+</script>
+
 </body>
 </html>
