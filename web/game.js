@@ -24,6 +24,12 @@ const RARITY_ORDER   = { N:1, R:2, SR:3, SSR:4 };
 const RARITY_RECRUIT = { N:1.2, R:1.0, SR:0.7, SSR:0.4 };
 const RARITY_LIST    = ['N','R','SR','SSR'];
 const RARITY_ICON    = { N: '·', R: '◆', SR: '★', SSR: '✦' };
+const ROLE_ICON = {
+  attack:'⚔', defense:'🛡', speed:'💨', debuff:'☠', heal:'💊', utility:'◉',
+};
+const ROLE_JP = {
+  attack:'攻撃', defense:'防御', speed:'速度', debuff:'弱体', heal:'回復', utility:'汎用',
+};
 const ELEM_ICON      = {
   fire:'🔥', water:'💧', thunder:'⚡', ice:'❄',
   earth:'🪨', wind:'🌀', light:'✨', dark:'🌑', neutral:'○',
@@ -121,6 +127,7 @@ const G = {
   monsters:      [],
   battleParty:   [],
   battleLog:     [],
+  autoSaveSlot:  0,   // 自動セーブ先スロット（0=未選択、手動セーブ/ロード時に更新）
 };
 
 function initData() {
@@ -271,6 +278,17 @@ function saveGame(slot) {
   localStorage.setItem(SAVE_PFX + slot, JSON.stringify(data));
 }
 
+function autoSave() {
+  if (!G.autoSaveSlot) return;  // ぼうけんのしょ未選択なら何もしない
+  saveGame(G.autoSaveSlot);
+  const ind = document.createElement('div');
+  ind.className = 'screen-line dim';
+  ind.style.fontSize = '10px';
+  ind.textContent = `  ◆ S${G.autoSaveSlot} じどうきろく`;
+  $text().appendChild(ind);
+  $text().scrollTop = $text().scrollHeight;
+}
+
 function loadGame(slot) {
   const raw = localStorage.getItem(SAVE_PFX + slot);
   if (!raw) return false;
@@ -301,6 +319,7 @@ const ui = {
   inputResolver: null,
   inputType: null,  // 'menu'|'pause'|'pick'
   menuChoices: [],
+  tapHandler: null,
 };
 
 const $gfx  = () => document.getElementById('screen-graphics');
@@ -326,6 +345,107 @@ function printSep()    { print(SEP, 'separator'); }
 function printHeader() {
   print('文字モンスター育成RPG', 'bright');
   print(SEP, 'separator');
+}
+
+// ---------- バトルログ表示ヘルパー ----------
+function printBattleAttack(atkName, atkElem, isParty, tgtName, tgtElem, dmg, adv) {
+  const line = document.createElement('div');
+  line.className = 'b-line';
+
+  // 攻撃者バッジ
+  const aSpan = document.createElement('span');
+  aSpan.className = `b-name ${ELEM_CLASS[atkElem] || ''} ${isParty ? 'b-name-p' : 'b-name-e'}`;
+  aSpan.textContent = `${ELEM_ICON[atkElem] || ''} ${atkName}`;
+
+  // 矢印
+  const arr = document.createElement('span');
+  arr.className = 'b-arr';
+  arr.textContent = '→';
+
+  // 対象バッジ
+  const tSpan = document.createElement('span');
+  tSpan.className = `b-name ${ELEM_CLASS[tgtElem] || ''} ${isParty ? 'b-name-e' : 'b-name-p'}`;
+  tSpan.textContent = `${ELEM_ICON[tgtElem] || ''} ${tgtName}`;
+
+  // ダメージ数値
+  const dmgSpan = document.createElement('span');
+  dmgSpan.className = `b-dmg ${isParty ? 'b-dmg-p' : 'b-dmg-e'}`;
+  dmgSpan.textContent = dmg;
+
+  // ラベル
+  const lbl = document.createElement('span');
+  lbl.className = 'b-lbl';
+  lbl.textContent = 'ダメージ';
+
+  line.appendChild(aSpan);
+  line.appendChild(arr);
+  line.appendChild(tSpan);
+  line.appendChild(dmgSpan);
+  line.appendChild(lbl);
+
+  if (adv) {
+    const advSpan = document.createElement('span');
+    advSpan.className = 'b-adv';
+    advSpan.textContent = '★ゆうり';
+    line.appendChild(advSpan);
+  }
+
+  $text().appendChild(line);
+  $text().scrollTop = $text().scrollHeight;
+}
+
+function printBattleHp(name, elem, curHp, maxHp, isKo) {
+  const row = document.createElement('div');
+  row.className = 'b-hp-row';
+
+  const nameSpan = document.createElement('span');
+  nameSpan.className = `b-hp-name ${ELEM_CLASS[elem] || ''}`;
+  nameSpan.textContent = name;
+
+  const bar = document.createElement('div');
+  bar.className = 'b-hp-bar';
+  const pct = maxHp > 0 ? Math.max(0, curHp / maxHp) : 0;
+  const fill = document.createElement('div');
+  const hpCls = pct <= 0.2 ? ' hp-crit' : pct <= 0.5 ? ' hp-low' : pct <= 0.7 ? ' hp-mid' : '';
+  fill.className = 'b-hp-fill' + hpCls;
+  fill.style.width = `${Math.round(pct * 100)}%`;
+  bar.appendChild(fill);
+
+  const numSpan = document.createElement('span');
+  numSpan.className = 'b-hp-num';
+  numSpan.textContent = `${curHp}/${maxHp}`;
+
+  row.appendChild(nameSpan);
+  row.appendChild(bar);
+  row.appendChild(numSpan);
+
+  if (isKo) {
+    const ko = document.createElement('span');
+    ko.className = 'b-ko';
+    ko.textContent = 'KO';
+    row.appendChild(ko);
+  }
+
+  $text().appendChild(row);
+  $text().scrollTop = $text().scrollHeight;
+}
+
+function makeNameBadge(name, elem, side = '') {
+  const sp = document.createElement('span');
+  const sideCls = side === 'party' ? ' b-name-p' : side === 'enemy' ? ' b-name-e' : '';
+  sp.className = `b-name ${ELEM_CLASS[elem] || ''}${sideCls}`;
+  sp.textContent = `${ELEM_ICON[elem] || ''} ${name}`;
+  return sp;
+}
+
+function printRich(cls, ...parts) {
+  const div = document.createElement('div');
+  div.className = 'screen-line' + (cls ? ' ' + cls : '');
+  for (const p of parts) {
+    div.appendChild(p instanceof Node ? p : document.createTextNode(String(p)));
+  }
+  $text().appendChild(div);
+  $text().scrollTop = $text().scrollHeight;
 }
 
 // ---------- グラフィックエリア ----------
@@ -579,22 +699,33 @@ function resolveMenu(idx) {
   fn(idx);
 }
 
-// ---------- 一時停止ボタン ----------
-function pause(label = '  ▶ つづける') {
+// ---------- 一時停止（タップで続行） ----------
+function pause() {
   return new Promise(resolve => {
     ui.inputType     = 'pause';
     ui.inputResolver = resolve;
 
-    const bc = $btns();
-    bc.innerHTML = '';
-    const grid = document.createElement('div');
-    grid.className = 'action-grid cols-1';
-    const btn = document.createElement('button');
-    btn.className = 'action-btn pause-btn';
-    btn.textContent = label;
-    btn.onclick = () => resolvePause();
-    grid.appendChild(btn);
-    bc.appendChild(grid);
+    $btns().innerHTML = '';
+
+    // ▶▶▶ インジケーターをテキストエリアに追加
+    const ind = document.createElement('div');
+    ind.className = 'screen-line tap-indicator';
+    ind.textContent = '  ▶ ▶ ▶';
+    $text().appendChild(ind);
+    $text().scrollTop = $text().scrollHeight;
+
+    // 50ms 遅延でタップイベント登録（直前のクリックが誤発火しないよう）
+    setTimeout(() => {
+      if (ui.inputType !== 'pause') return;
+      const scr = document.getElementById('screen');
+      function onTap() {
+        scr.removeEventListener('click', onTap);
+        ui.tapHandler = null;
+        resolvePause();
+      }
+      ui.tapHandler = onTap;
+      scr.addEventListener('click', onTap);
+    }, 50);
   });
 }
 
@@ -603,6 +734,10 @@ function resolvePause() {
   const fn = ui.inputResolver;
   ui.inputType = null; ui.inputResolver = null;
   $btns().innerHTML = '';
+  if (ui.tapHandler) {
+    document.getElementById('screen').removeEventListener('click', ui.tapHandler);
+    ui.tapHandler = null;
+  }
   fn();
 }
 
@@ -788,24 +923,16 @@ async function mainLoop() {
     const m = leader();
     showSingleCard(m, m.currentHp);
     print();
-    print(`  ▶ ${m.name}  [${m.rarity()}]  Lv${m.level}`, 'bright');
+    printRich('bright', '  ▶ ', makeNameBadge(m.name, m.elem(), 'party'), `  [${m.rarity()}]  Lv${m.level}`);
     print(`    HP: ${m.currentHp}/${m.maxHp}  ATK:${m.atk} DEF:${m.def_} SPD:${m.spd}`);
     print(`  なかま: ${G.battleParty.length}/${BATTLE_MAX}体  所持: ${G.monsters.length}体`);
     print();
 
-    const idx = await menu('コマンド', ['ぼうけん', 'なかま', 'ずかん', 'ぼうけんのしょ', 'やめる']);
+    const idx = await menu('コマンド', ['ぼうけん', 'なかま', 'ずかん', 'ぼうけんのしょ']);
     if      (idx === 0) await explore();
     else if (idx === 1) await partyMenu();
     else if (idx === 2) await zukan();
     else if (idx === 3) await bookMenu();
-    else {
-      clearScreen();
-      print();
-      print('  またね！', 'bright');
-      print();
-      print('  （ページを閉じてください）');
-      return;
-    }
   }
 }
 
@@ -835,7 +962,7 @@ async function explore() {
   clearScreen();
   showBattleGraphics(enemy, enemy.currentHp, G.battleParty.map(m => m.currentHp));
   print();
-  print(`  やせいの 「${enemy.name}」 が あらわれた！`, 'bright');
+  printRich('bright', '  やせいの ', makeNameBadge(enemy.name, enemy.elem(), 'enemy'), ' が あらわれた！');
   print(`  [${rar}]  ${ELEM_JP[enemy.elem()] || '?'}属性  Lv${enemy.level}`);
   print();
 
@@ -899,9 +1026,15 @@ async function doBattle(enemy) {
     print();
     for (let i = 0; i < G.battleParty.length; i++) {
       const m  = G.battleParty[i];
-      const ko = partyHp[i] <= 0 ? '  【KO】' : '';
-      const arrow = i === 0 ? '▶' : ' ';
-      print(`  ${arrow} ${m.name} [${m.rarity()}] Lv${m.level}${ko}`);
+      const arrow = i === 0 ? '▶ ' : '   ';
+      const parts = [`  ${arrow}`, makeNameBadge(m.name, m.elem(), 'party'), `  Lv${m.level}`];
+      if (partyHp[i] <= 0) {
+        const ko = document.createElement('span');
+        ko.className = 'b-ko';
+        ko.textContent = 'KO';
+        parts.push('  ', ko);
+      }
+      printRich('', ...parts);
     }
   }
 
@@ -921,7 +1054,7 @@ async function doBattle(enemy) {
     }
 
     turns++;
-    const roundMsgs = [];
+    const roundData = [];
 
     const actors = G.battleParty
       .map((m, i) => partyHp[i] > 0 ? ['p', i, m.spd] : null)
@@ -938,8 +1071,9 @@ async function doBattle(enemy) {
         if (pm > 1.0) elemAdv = true;
         const dmg = Math.max(1, Math.floor(m.atk * pm) - Math.floor(enemy.def_ / 2));
         eHp = Math.max(0, eHp - dmg);
-        const adv = pm > 1.0 ? ' ★ぞくせいゆうり！' : '';
-        roundMsgs.push(`  ${m.name} → ${enemy.name}  ${dmg}ダメージ！${adv}`);
+        const adv = pm > 1.0;
+        roundData.push({ isParty: true, atkName: m.name, atkElem: m.elem(), tgtName: enemy.name, tgtElem: enemy.elem(), dmg, adv });
+        log.push(`  ${m.name} → ${enemy.name}  ${dmg}ダメージ！${adv ? ' ★ぞくせいゆうり！' : ''}`);
       } else {
         const alive = partyHp.map((hp, i) => hp > 0 ? i : -1).filter(i => i >= 0);
         if (!alive.length) break;
@@ -949,7 +1083,8 @@ async function doBattle(enemy) {
         const dmg = Math.max(1, Math.floor(enemy.atk * em) - Math.floor(tgt.def_ / 2));
         partyHp[ti] = Math.max(0, partyHp[ti] - dmg);
         flawless = false;
-        roundMsgs.push(`  ${enemy.name} → ${tgt.name}  ${dmg}ダメージ！`);
+        roundData.push({ isParty: false, atkName: enemy.name, atkElem: enemy.elem(), tgtName: tgt.name, tgtElem: tgt.elem(), dmg, adv: false });
+        log.push(`  ${enemy.name} → ${tgt.name}  ${dmg}ダメージ！`);
       }
     }
 
@@ -957,15 +1092,9 @@ async function doBattle(enemy) {
     clearScreen();
     refreshBattleGraphics();
     print();
-    for (const msg of roundMsgs) print(msg);
-    log.push(...roundMsgs);
-    print();
-    for (let i = 0; i < G.battleParty.length; i++) {
-      const m  = G.battleParty[i];
-      const ko = partyHp[i] <= 0 ? ' 【KO】' : '';
-      print(`  ${m.name}  HP:${partyHp[i]}/${m.maxHp}${ko}`);
+    for (const d of roundData) {
+      printBattleAttack(d.atkName, d.atkElem, d.isParty, d.tgtName, d.tgtElem, d.dmg, d.adv);
     }
-    print(`  ${enemy.name}  HP:${eHp}/${enemy.maxHp}`);
 
     if (G.battleParty.some((_, i) => partyHp[i] > 0) && eHp > 0) {
       await pause();
@@ -993,7 +1122,11 @@ async function doBattle(enemy) {
     const exp = enemy.level * 6 + randInt(1, 6);
     print(`\n  けいけんち +${exp}！`);
     for (const m of G.battleParty) {
-      for (const msg of m.gainExp(exp)) print(msg, 'bright');
+      const prevLv = m.level;
+      const lvMsgs = m.gainExp(exp);
+      for (let li = 0; li < lvMsgs.length; li++) {
+        printRich('bright', '  ', makeNameBadge(m.name, m.elem(), 'party'), ` は レベル ${prevLv + li + 1} に あがった！`);
+      }
     }
   } else {
     print('  ……たおれてしまった', 'dim');
@@ -1001,6 +1134,7 @@ async function doBattle(enemy) {
 
   for (const m of G.battleParty) m.heal();
   print('  （パーティは ひとやすみして HPが かいふくした）', 'dim');
+  autoSave();
   await pause();
 
   if (!won) return;
@@ -1023,12 +1157,13 @@ async function recruit(enemy) {
   clearScreen();
   showSingleCard(enemy, enemy.maxHp);
   print();
-  print(`  「${enemy.name}」が なかまに なりたそうに こちらを みている！`, 'bright');
+  printRich('bright', '  ', makeNameBadge(enemy.name, enemy.elem(), 'enemy'), ' が なかまに なりたそうに こちらを みている！');
   print();
 
   const idx = await menu('なかまにする？', ['はい！', 'いいえ']);
   if (idx === 1) {
-    print(`\n  「${enemy.name}」は さっていった。`);
+    print();
+    printRich('', '  ', makeNameBadge(enemy.name, enemy.elem(), 'enemy'), ' は さっていった。');
     await pause();
     return;
   }
@@ -1036,7 +1171,8 @@ async function recruit(enemy) {
   enemy.heal();
   unlock(enemy.chars);
   G.monsters.push(enemy);
-  print(`\n  「${enemy.name}」が なかまに なった！`, 'bright');
+  print();
+  printRich('bright', '  ', makeNameBadge(enemy.name, enemy.elem(), 'enemy'), ' が なかまに なった！');
   print(`  所持モンスター: ${G.monsters.length}体`);
 
   if (G.battleParty.length < BATTLE_MAX) {
@@ -1045,6 +1181,7 @@ async function recruit(enemy) {
   } else {
     print('  ※ 戦闘パーティが いっぱいです。', 'dim');
   }
+  autoSave();
   await pause();
 }
 
@@ -1062,7 +1199,7 @@ async function inspiration(monster, newChar) {
   print();
   print('  ✨ ひらめき！', 'bright');
   print();
-  print(`  「${monster.name}」が レベル ${monster.level} に なった！`);
+  printRich('', '  ', makeNameBadge(monster.name, monster.elem(), 'party'), ` が レベル ${monster.level} に なった！`);
   print('  あたらしい 文字が かがやいている……');
   print();
   printSep();
@@ -1108,95 +1245,348 @@ async function inspiration(monster, newChar) {
     clearScreen();
     showSingleCard(monster, monster.currentHp);
     print();
-    print(`  「${newName}」に しんかした！`, 'bright');
+    printRich('bright', '  ', makeNameBadge(newName, monster.elem(), 'party'), ' に しんかした！');
     print(`  [${monster.rarity()}]  ${ELEM_JP[monster.elem()]}属性  Lv${monster.level}`);
   } else {
     print('\n  ひらめきは きえていった……', 'dim');
   }
+  autoSave();
   await pause();
 }
 
 // ===================================================
 // ===== なかまメニュー =====
 // ===================================================
+
+/** モンスターの代表ロールを返す */
+function monsterRole(m) {
+  const cnt = {};
+  for (const c of m.chars) cnt[c.role] = (cnt[c.role] || 0) + 1;
+  return Object.entries(cnt).sort((a,b) => b[1]-a[1])[0]?.[0] || 'utility';
+}
+
+/** ロースターカードDOM生成（ボックス・pickMonster共用） */
+function makeRosterCard(m) {
+  const rar  = m.rarity();
+  const elem = m.elem();
+  const role = monsterRole(m);
+  const nameLen = [...m.name].length;
+
+  const card = document.createElement('div');
+  card.className = `roster-card rarity-${rar}`;
+
+  // レア度バッジ
+  const badge = document.createElement('div');
+  badge.className = 'rc-badge';
+  badge.textContent = RARITY_ICON[rar] || rar;
+  card.appendChild(badge);
+
+  // 属性アイコン
+  const elemDiv = document.createElement('div');
+  elemDiv.className = 'rc-elem';
+  elemDiv.textContent = ELEM_ICON[elem] || '○';
+  card.appendChild(elemDiv);
+
+  // 文字名
+  const kanji = document.createElement('div');
+  kanji.className = `rc-kanji ${nameLen >= 2 ? 'len'+nameLen : ''} ${ELEM_CLASS[elem] || ''}`;
+  kanji.textContent = m.name;
+  card.appendChild(kanji);
+
+  // Lv＋ロール
+  const lv = document.createElement('div');
+  lv.className = 'rc-lv';
+  lv.textContent = `Lv${m.level}`;
+  card.appendChild(lv);
+
+  const roleDiv = document.createElement('div');
+  roleDiv.className = 'rc-role';
+  roleDiv.textContent = (ROLE_ICON[role] || '') + ' ' + (ROLE_JP[role] || '');
+  card.appendChild(roleDiv);
+
+  // HP バー
+  const hp = document.createElement('div');
+  hp.className = 'rc-hp';
+  const hpf = document.createElement('div');
+  hpf.className = 'rc-hp-fill';
+  hpf.style.width = Math.round(Math.max(0, m.currentHp) / m.maxHp * 100) + '%';
+  hp.appendChild(hpf);
+  card.appendChild(hp);
+
+  return card;
+}
+
+/** ロースターUI（なかまメニューのメイン画面）
+ *  戻り値: 'back' | 'detail' | 'breed'
+ */
+async function showRosterUI() {
+  return new Promise(resolve => {
+    let swapTarget = null; // パーティ満員時に追加待ちのボックスモンスター
+    const screen = document.getElementById('screen');
+
+    function finish(result) {
+      screen.classList.remove('roster-mode');
+      $btns().innerHTML = '';
+      resolve(result);
+    }
+
+    function render() {
+      const bc = $btns();
+      bc.innerHTML = '';
+      screen.classList.add('roster-mode');
+
+      const wrap = document.createElement('div');
+      wrap.className = 'roster-wrap';
+
+      // ─── パーティセクション ───
+      const ptSection = document.createElement('div');
+      ptSection.className = 'roster-party-section';
+
+      const lbl = document.createElement('div');
+      lbl.className = 'roster-section-label' + (swapTarget ? ' swap-mode' : '');
+      lbl.textContent = swapTarget
+        ? `「${swapTarget.name}」と交換するメンバーを選んでください`
+        : `パーティ (${G.battleParty.length}/${BATTLE_MAX})  ─ タップではずす`;
+      ptSection.appendChild(lbl);
+
+      const ptRow = document.createElement('div');
+      ptRow.className = 'roster-party-row';
+
+      for (let i = 0; i < BATTLE_MAX; i++) {
+        const m = G.battleParty[i];
+        const slot = document.createElement('div');
+
+        if (m) {
+          const rar      = m.rarity();
+          const elem     = m.elem();
+          const isLeader = (i === 0);
+          const canRem   = G.battleParty.length > 1;
+          let cls = `roster-party-slot filled rarity-${rar}`;
+          if (isLeader)  cls += ' leader';
+          if (!canRem)   cls += ' no-remove';
+          if (swapTarget) cls += ' swap-select';
+          slot.className = cls;
+
+          // クリック処理
+          if (swapTarget && canRem) {
+            slot.onclick = () => { G.battleParty[i] = swapTarget; swapTarget = null; render(); };
+          } else if (!swapTarget && canRem) {
+            slot.onclick = () => { G.battleParty.splice(i, 1); render(); };
+          }
+
+          // リーダーマーク
+          if (isLeader) {
+            const lm = document.createElement('div');
+            lm.className = 'slot-leader-mark'; lm.textContent = '▶';
+            slot.appendChild(lm);
+          }
+          // レア度バッジ
+          const rb = document.createElement('div');
+          rb.className = 'slot-rar-badge';
+          rb.textContent = RARITY_ICON[rar] || rar;
+          slot.appendChild(rb);
+
+          // コンテンツ
+          const cnt = document.createElement('div');
+          cnt.className = 'slot-content';
+
+          const ed = document.createElement('div');
+          ed.className = 'slot-elem';
+          ed.textContent = ELEM_ICON[elem] || '○';
+          cnt.appendChild(ed);
+
+          const nl = [...m.name].length;
+          const nd = document.createElement('div');
+          nd.className = `slot-name ${nl >= 2 ? 'len'+nl : ''} ${ELEM_CLASS[elem] || ''}`;
+          nd.textContent = m.name;
+          cnt.appendChild(nd);
+
+          const ld = document.createElement('div');
+          ld.className = 'slot-lv';
+          ld.textContent = `Lv${m.level}`;
+          cnt.appendChild(ld);
+
+          const hb = document.createElement('div');
+          hb.className = 'slot-hp-bar';
+          const hf = document.createElement('div');
+          hf.className = 'slot-hp-fill';
+          hf.style.width = Math.round(m.currentHp / m.maxHp * 100) + '%';
+          hb.appendChild(hf); cnt.appendChild(hb);
+
+          // ヒント文
+          if (swapTarget) {
+            const h = document.createElement('div');
+            h.className = 'slot-swap-hint'; h.textContent = 'ここに交換';
+            cnt.appendChild(h);
+          } else if (canRem) {
+            const h = document.createElement('div');
+            h.className = 'slot-remove-hint'; h.textContent = 'タップ: はずす';
+            cnt.appendChild(h);
+          }
+          slot.appendChild(cnt);
+        } else {
+          slot.className = 'roster-party-slot empty';
+          slot.textContent = '空きスロット';
+        }
+        ptRow.appendChild(slot);
+      }
+      ptSection.appendChild(ptRow);
+      wrap.appendChild(ptSection);
+
+      // ─── ボックスセクション ───
+      const box = G.monsters.filter(m => !G.battleParty.includes(m));
+
+      const bh = document.createElement('div');
+      bh.className = 'roster-box-header';
+      const bt = document.createElement('span');
+      bt.textContent = swapTarget
+        ? `ボックス (${box.length}体)  ─ 上のパーティスロットをタップ`
+        : `ボックス (${box.length}体)  ─ タップでパーティに追加`;
+      bh.appendChild(bt);
+      if (swapTarget) {
+        const cb = document.createElement('button');
+        cb.className = 'action-btn type-cancel';
+        cb.style.cssText = 'padding:1px 8px;font-size:10px;height:auto;min-height:0;';
+        cb.textContent = 'キャンセル';
+        cb.onclick = () => { swapTarget = null; render(); };
+        bh.appendChild(cb);
+      }
+      wrap.appendChild(bh);
+
+      const bs = document.createElement('div');
+      bs.className = 'roster-box-scroll';
+      const bg = document.createElement('div');
+      bg.className = 'roster-box-grid';
+
+      if (!box.length) {
+        const em = document.createElement('div');
+        em.className = 'roster-empty-msg';
+        em.textContent = 'ボックスにモンスターはいません';
+        bg.appendChild(em);
+      }
+
+      for (const m of box) {
+        const card = makeRosterCard(m);
+        const isFull = G.battleParty.length >= BATTLE_MAX;
+        if (swapTarget) {
+          card.classList.add('swap-dim');
+        } else if (isFull) {
+          card.onclick = () => { swapTarget = m; render(); };
+        } else {
+          card.classList.add('add-mode');
+          card.onclick = () => { G.battleParty.push(m); render(); };
+        }
+        bg.appendChild(card);
+      }
+      bs.appendChild(bg);
+      wrap.appendChild(bs);
+
+      // ─── アクションボタン行 ───
+      const ar = document.createElement('div');
+      ar.className = 'roster-action-row';
+      const acts = [
+        { lbl: 'くわしくみる', icon: '◎', cls: 'type-info',   res: 'detail' },
+        { lbl: '配合する',     icon: '⊕', cls: 'type-action', res: 'breed'  },
+        { lbl: 'もどる',       icon: '←', cls: 'type-back',   res: 'back'   },
+      ];
+      for (const a of acts) {
+        const btn = document.createElement('button');
+        btn.className = `action-btn ${a.cls}`;
+        const ic = document.createElement('span');
+        ic.className = 'btn-icon'; ic.textContent = a.icon;
+        btn.appendChild(ic);
+        btn.appendChild(document.createTextNode(a.lbl));
+        btn.onclick = () => finish(a.res);
+        ar.appendChild(btn);
+      }
+      wrap.appendChild(ar);
+      bc.appendChild(wrap);
+    }
+
+    render();
+  });
+}
+
 async function partyMenu() {
   while (true) {
     clearScreen();
-    print();
-    print(`  ＜戦闘パーティ＞  (${G.battleParty.length}/${BATTLE_MAX}体)`, 'bright');
-    print();
-    for (let i = 0; i < G.battleParty.length; i++) {
-      const m    = G.battleParty[i];
-      const mark = i === 0 ? '▶' : '  ';
-      print(`  ${mark} ${m.name} [${m.rarity()}] Lv${m.level}  HP:${m.currentHp}/${m.maxHp}`);
-    }
+    hideGraphics();
 
-    const box = G.monsters.filter(m => !G.battleParty.includes(m));
-    if (box.length) {
-      print();
-      print(`  ＜ボックス＞  (${box.length}体)`, 'mid');
-      for (const m of box) print(`     ${m.name} [${m.rarity()}] Lv${m.level}`);
+    const result = await showRosterUI();
+    if (result === 'back') break;
+    if (result === 'detail') await detailView();
+    if (result === 'breed') {
+      if (G.monsters.length < 2) {
+        clearScreen();
+        print('\n  モンスターが 2体 いないと 配合できない。');
+        await pause();
+      } else {
+        await breed();
+      }
     }
-    print();
-
-    const idx = await menu('操作', ['メンバーへんこう', 'くわしくみる', '配合する', 'もどる']);
-    if      (idx === 0) await editBattleParty();
-    else if (idx === 1) await detailView();
-    else if (idx === 2) await breed();
-    else break;
   }
 }
 
+/** モンスター選択（ビジュアルカード版） */
 async function pickMonster(prompt, exclude = null) {
   const cands = G.monsters.filter(m => m !== exclude);
   if (!cands.length) return null;
-  const labels = cands.map(m => `${m.name} [${m.rarity()}] Lv${m.level}`);
-  const idx = await menu(prompt, labels);
-  return cands[idx];
-}
 
-async function editBattleParty() {
-  clearScreen();
-  print();
-  print(`  ＜戦闘パーティ＞  (${G.battleParty.length}/${BATTLE_MAX}体)`, 'bright');
-  for (const m of G.battleParty) print(`    ${m.name} [${m.rarity()}] Lv${m.level}`);
+  return new Promise(resolve => {
+    const screen = document.getElementById('screen');
+    screen.classList.add('roster-mode');
 
-  const box = G.monsters.filter(m => !G.battleParty.includes(m));
-  if (box.length) {
-    print('\n  ＜ボックス＞', 'mid');
-    for (const m of box) print(`    ${m.name} [${m.rarity()}] Lv${m.level}`);
-  }
-  print();
+    const bc = $btns();
+    bc.innerHTML = '';
 
-  const idx = await menu('どうする？', ['パーティに くわえる', 'パーティから はずす', 'もどる']);
-  if (idx === 0) {
-    if (G.battleParty.length >= BATTLE_MAX) {
-      print(`\n  パーティが いっぱいです（最大${BATTLE_MAX}体）`);
-      await pause();
-      return;
+    const wrap = document.createElement('div');
+    wrap.className = 'roster-wrap';
+
+    // ヘッダー
+    const hd = document.createElement('div');
+    hd.className = 'roster-box-header';
+    hd.style.fontSize = '12px';
+    hd.style.color = 'var(--text-mid)';
+    hd.textContent = `${prompt}  （タップして選択）`;
+    wrap.appendChild(hd);
+
+    // カードグリッド
+    const sc = document.createElement('div');
+    sc.className = 'roster-box-scroll';
+    const gd = document.createElement('div');
+    gd.className = 'roster-box-grid';
+
+    for (const m of cands) {
+      const card = makeRosterCard(m);
+      card.onclick = () => {
+        screen.classList.remove('roster-mode');
+        bc.innerHTML = '';
+        resolve(m);
+      };
+      gd.appendChild(card);
     }
-    if (!box.length) {
-      print('\n  ボックスに モンスターが いません。');
-      await pause();
-      return;
-    }
-    const labels = box.map(m => `${m.name} [${m.rarity()}] Lv${m.level}`);
-    const bi = await menu('パーティに くわえる', labels);
-    G.battleParty.push(box[bi]);
-    print(`\n  「${box[bi].name}」が 戦闘パーティに くわわった！`);
-    await pause();
-  } else if (idx === 1) {
-    if (G.battleParty.length <= 1) {
-      print('\n  パーティに 1体は いないと いけません。');
-      await pause();
-      return;
-    }
-    const labels = G.battleParty.map(m => `${m.name} [${m.rarity()}] Lv${m.level}`);
-    const bi = await menu('パーティから はずす', labels);
-    const m = G.battleParty.splice(bi, 1)[0];
-    print(`\n  「${m.name}」を パーティから はずした。`);
-    await pause();
-  }
+    sc.appendChild(gd);
+    wrap.appendChild(sc);
+
+    // キャンセルボタン
+    const ar = document.createElement('div');
+    ar.className = 'roster-action-row';
+    ar.style.gridTemplateColumns = '1fr';
+    const cb = document.createElement('button');
+    cb.className = 'action-btn type-back';
+    const ic = document.createElement('span');
+    ic.className = 'btn-icon'; ic.textContent = '←';
+    cb.appendChild(ic);
+    cb.appendChild(document.createTextNode('やめた'));
+    cb.onclick = () => {
+      screen.classList.remove('roster-mode');
+      bc.innerHTML = '';
+      resolve(null);
+    };
+    ar.appendChild(cb);
+    wrap.appendChild(ar);
+    bc.appendChild(wrap);
+  });
 }
 
 async function detailView() {
@@ -1247,7 +1637,7 @@ async function breed() {
   const rc = makeMonsterCard(p2, p2.currentHp, 'solo'); rc.style.flex = '1'; br.appendChild(rc);
   gfx.appendChild(br);
   print();
-  print(`  ${p1.name}  ×  ${p2.name}`, 'bright');
+  printRich('bright', '  ', makeNameBadge(p1.name, p1.elem(), ''), '  ×  ', makeNameBadge(p2.name, p2.elem(), ''));
   print(`  [${p1.rarity()}]       [${p2.rarity()}]`);
   print();
   if (await menu('配合する？', ['する！', 'やめる']) === 1) {
@@ -1290,10 +1680,11 @@ async function breed() {
   clearScreen();
   showSingleCard(child, child.currentHp);
   print();
-  print(`  「${newName}」が うまれた！`, 'bright');
+  printRich('bright', '  ', makeNameBadge(newName, child.elem(), 'party'), ' が うまれた！');
   print(`  [${child.rarity()}]  ${ELEM_JP[child.elem()]}属性  Lv${child.level}`);
   print();
-  print(`  ※「${p1.name}」と「${p2.name}」は 旅立った……`, 'dim');
+  printRich('dim', '  ※ ', makeNameBadge(p1.name, p1.elem(), ''), ' と ', makeNameBadge(p2.name, p2.elem(), ''), ' は 旅立った……');
+  autoSave();
   await pause();
 }
 
@@ -1324,8 +1715,9 @@ async function saveMenu() {
   const labels = [...slotLabels(), 'もどる'];
   const idx = await menu('どこに きろくする？', labels);
   if (idx === SLOTS) return;
-  saveGame(idx + 1);
-  print(`\n  スロット${idx+1} に きろくした！`, 'bright');
+  G.autoSaveSlot = idx + 1;
+  saveGame(G.autoSaveSlot);
+  print(`\n  スロット${G.autoSaveSlot} に きろくした！`, 'bright');
   await pause();
 }
 
@@ -1343,6 +1735,7 @@ async function loadMenu(fromTitle) {
   }
   const ok = loadGame(slot);
   if (ok) {
+    G.autoSaveSlot = slot;
     print(`\n  スロット${slot} を よみこんだ！`, 'bright');
     if (!fromTitle) await pause();
   } else {
@@ -1518,7 +1911,7 @@ async function inspTree() {
   }
 
   $text().appendChild(wrap);
-  await pause('  ← もどる');
+  await pause();
 }
 
 // ===== エントリポイント =====
