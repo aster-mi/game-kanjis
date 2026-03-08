@@ -1108,17 +1108,32 @@ async function doBattle(enemy) {
     }
   }
 
+  // ── AIによる自動スキル選択 ──
+  function pickAutoSkill(leaderIdx) {
+    const leader = G.battleParty[leaderIdx];
+    const skills = getSkills(leader);
+    // 優先1: HP35%以下のメンバーがいれば回復
+    const heal = skills.find(s => s.id === 'heal');
+    if (heal && G.battleParty.some((m, i) => partyHp[i] > 0 && partyHp[i] / m.maxHp < 0.35)) return heal;
+    // 優先2: リーダーHP45%以下ならまもり（35%確率）
+    const guard = skills.find(s => s.id === 'guard');
+    if (guard && partyHp[leaderIdx] / leader.maxHp < 0.45 && Math.random() < 0.35) return guard;
+    // 優先3: じゅもんスタック3未満なら弱体（25%確率）
+    const debuff = skills.find(s => s.id === 'debuff');
+    if (debuff && enemyDebuffStacks < 3 && Math.random() < 0.25) return debuff;
+    // 優先4: オフェンシブスキルからランダム選択
+    const offOptions = ['magic', 'boost', 'swift'].map(id => skills.find(s => s.id === id)).filter(Boolean);
+    if (offOptions.length) return pickRnd(offOptions);
+    return skills[0]; // こうげき
+  }
+
   while (G.battleParty.some((_, i) => partyHp[i] > 0) && eHp > 0) {
     showBattleStatus();
 
-    // ── スキルメニューを動的に生成 ──
     const aliveLeaderIdx = partyHp.findIndex(hp => hp > 0);
-    const currentLeader  = G.battleParty[aliveLeaderIdx] || G.battleParty[0];
-    const skills         = getSkills(currentLeader);
-    const menuItems      = skills.map(s => `${s.icon}${s.name}`).concat(['にげる']);
-    const choice         = await menu('どうする？', menuItems);
+    const choice         = await menu('どうする？', ['たたかう！', 'にげる']);
 
-    if (choice === menuItems.length - 1) {
+    if (choice === 1) {
       // にげる
       for (let i = 0; i < G.battleParty.length; i++) G.battleParty[i].currentHp = partyHp[i];
       clearScreen();
@@ -1130,7 +1145,7 @@ async function doBattle(enemy) {
       return;
     }
 
-    const chosenSkill = skills[choice];
+    const chosenSkill = pickAutoSkill(aliveLeaderIdx);
     turns++;
     const roundData   = [];
     let   partyGuard  = false;   // このターン限り
@@ -1480,7 +1495,7 @@ function makeRosterCard(m) {
   hp.className = 'rc-hp';
   const hpf = document.createElement('div');
   hpf.className = 'rc-hp-fill';
-  hpf.style.width = Math.round(Math.max(0, m.currentHp) / m.maxHp * 100) + '%';
+  hpf.style.width = (m.maxHp > 0 ? Math.round(Math.max(0, m.currentHp) / m.maxHp * 100) : 0) + '%';
   hp.appendChild(hpf);
   card.appendChild(hp);
 
@@ -1581,7 +1596,7 @@ async function showRosterUI() {
           hb.className = 'slot-hp-bar';
           const hf = document.createElement('div');
           hf.className = 'slot-hp-fill';
-          hf.style.width = Math.round(m.currentHp / m.maxHp * 100) + '%';
+          hf.style.width = (m.maxHp > 0 ? Math.round(Math.max(0, m.currentHp) / m.maxHp * 100) : 0) + '%';
           hb.appendChild(hf); cnt.appendChild(hb);
 
           // ヒント文
@@ -1831,7 +1846,7 @@ async function breed() {
 
   const newChars = await pickChars('つかえる文字', pool, 3);
   const newName  = newChars.map(c => c.char).join('');
-  const childLv  = Math.max(1, Math.floor((p1.level + p2.level) / 4));
+  const childLv  = 1;
   const child = new Monster({
     name: newName, chars: newChars, level: childLv,
     parents: [p1.name, p2.name],
