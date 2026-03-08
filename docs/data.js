@@ -1569,6 +1569,466 @@ const KANJI_DATA = [
     "def": 1,
     "spd": 5
   }
+  ,{
+    "char": "明",
+    "element": "light",
+    "role": "utility",
+    "rarity": "N",
+    "hp": 2,
+    "atk": 2,
+    "def": 3,
+    "spd": 2
+  }
+  ,{
+    "char": "暁",
+    "element": "light",
+    "role": "utility",
+    "rarity": "N",
+    "hp": 2,
+    "atk": 2,
+    "def": 3,
+    "spd": 2
+  }
+  ,{
+    "char": "朱",
+    "element": "fire",
+    "role": "attack",
+    "rarity": "N",
+    "hp": 1,
+    "atk": 4,
+    "def": 1,
+    "spd": 2
+  }
+  ,{
+    "char": "炭",
+    "element": "fire",
+    "role": "utility",
+    "rarity": "N",
+    "hp": 1,
+    "atk": 3,
+    "def": 2,
+    "spd": 2
+  }
+  ,{
+    "char": "煙",
+    "element": "fire",
+    "role": "utility",
+    "rarity": "N",
+    "hp": 1,
+    "atk": 2,
+    "def": 2,
+    "spd": 3
+  }
+  ,{
+    "char": "川",
+    "element": "water",
+    "role": "utility",
+    "rarity": "N",
+    "hp": 2,
+    "atk": 2,
+    "def": 2,
+    "spd": 2
+  }
+  ,{
+    "char": "蒼",
+    "element": "water",
+    "role": "utility",
+    "rarity": "N",
+    "hp": 2,
+    "atk": 2,
+    "def": 2,
+    "spd": 2
+  }
+  ,{
+    "char": "凍",
+    "element": "ice",
+    "role": "debuff",
+    "rarity": "N",
+    "hp": 1,
+    "atk": 2,
+    "def": 2,
+    "spd": 2
+  }
+  ,{
+    "char": "霧",
+    "element": "ice",
+    "role": "utility",
+    "rarity": "N",
+    "hp": 1,
+    "atk": 2,
+    "def": 2,
+    "spd": 3
+  }
+  ,{
+    "char": "舞",
+    "element": "wind",
+    "role": "speed",
+    "rarity": "N",
+    "hp": 0,
+    "atk": 3,
+    "def": 1,
+    "spd": 5
+  }
+  ,{
+    "char": "芽",
+    "element": "earth",
+    "role": "heal",
+    "rarity": "N",
+    "hp": 2,
+    "atk": 1,
+    "def": 2,
+    "spd": 1
+  }
+  ,{
+    "char": "砦",
+    "element": "earth",
+    "role": "defense",
+    "rarity": "N",
+    "hp": 3,
+    "atk": 1,
+    "def": 6,
+    "spd": 0
+  }
+  ,{
+    "char": "幻",
+    "element": "dark",
+    "role": "debuff",
+    "rarity": "N",
+    "hp": 0,
+    "atk": 3,
+    "def": 1,
+    "spd": 3
+  }
+  ,{
+    "char": "禍",
+    "element": "dark",
+    "role": "debuff",
+    "rarity": "N",
+    "hp": 0,
+    "atk": 3,
+    "def": 1,
+    "spd": 2
+  }
+  ,{
+    "char": "幽",
+    "element": "dark",
+    "role": "utility",
+    "rarity": "N",
+    "hp": 0,
+    "atk": 3,
+    "def": 2,
+    "spd": 3
+  }
+  ,{
+    "char": "刃",
+    "element": "neutral",
+    "role": "attack",
+    "rarity": "N",
+    "hp": 1,
+    "atk": 5,
+    "def": 1,
+    "spd": 1
+  }
+  ,{
+    "char": "忍",
+    "element": "neutral",
+    "role": "speed",
+    "rarity": "N",
+    "hp": 0,
+    "atk": 3,
+    "def": 1,
+    "spd": 5
+  }
+  ,{
+    "char": "術",
+    "element": "neutral",
+    "role": "utility",
+    "rarity": "N",
+    "hp": 1,
+    "atk": 2,
+    "def": 2,
+    "spd": 2
+  }
+  ,{
+    "char": "武",
+    "element": "neutral",
+    "role": "attack",
+    "rarity": "N",
+    "hp": 1,
+    "atk": 5,
+    "def": 1,
+    "spd": 1
+  }
+  ,{
+    "char": "刻",
+    "element": "neutral",
+    "role": "utility",
+    "rarity": "N",
+    "hp": 1,
+    "atk": 2,
+    "def": 2,
+    "spd": 2
+  }
+  ,{
+    "char": "斬",
+    "element": "neutral",
+    "role": "attack",
+    "rarity": "R",
+    "hp": 1,
+    "atk": 6,
+    "def": 2,
+    "spd": 3
+  }
+  ,{
+    "char": "焦",
+    "element": "fire",
+    "role": "attack",
+    "rarity": "R",
+    "hp": 1,
+    "atk": 6,
+    "def": 1,
+    "spd": 2
+  }
+  ,{
+    "char": "渦",
+    "element": "water",
+    "role": "attack",
+    "rarity": "R",
+    "hp": 2,
+    "atk": 5,
+    "def": 2,
+    "spd": 3
+  }
+  ,{
+    "char": "廻",
+    "element": "wind",
+    "role": "speed",
+    "rarity": "R",
+    "hp": 1,
+    "atk": 3,
+    "def": 2,
+    "spd": 5
+  }
+  ,{
+    "char": "嶺",
+    "element": "earth",
+    "role": "defense",
+    "rarity": "R",
+    "hp": 3,
+    "atk": 2,
+    "def": 7,
+    "spd": 0
+  }
+  ,{
+    "char": "璃",
+    "element": "ice",
+    "role": "utility",
+    "rarity": "R",
+    "hp": 2,
+    "atk": 3,
+    "def": 3,
+    "spd": 3
+  }
+  ,{
+    "char": "獄",
+    "element": "dark",
+    "role": "debuff",
+    "rarity": "R",
+    "hp": 1,
+    "atk": 3,
+    "def": 4,
+    "spd": 2
+  }
+  ,{
+    "char": "玄",
+    "element": "dark",
+    "role": "utility",
+    "rarity": "R",
+    "hp": 1,
+    "atk": 3,
+    "def": 3,
+    "spd": 4
+  }
+  ,{
+    "char": "沌",
+    "element": "dark",
+    "role": "debuff",
+    "rarity": "R",
+    "hp": 0,
+    "atk": 4,
+    "def": 2,
+    "spd": 3
+  }
+  ,{
+    "char": "崩",
+    "element": "earth",
+    "role": "attack",
+    "rarity": "R",
+    "hp": 2,
+    "atk": 5,
+    "def": 2,
+    "spd": 2
+  }
+  ,{
+    "char": "武術",
+    "element": "neutral",
+    "role": "attack",
+    "rarity": "R",
+    "hp": 2,
+    "atk": 5,
+    "def": 2,
+    "spd": 3
+  }
+  ,{
+    "char": "忍術",
+    "element": "neutral",
+    "role": "speed",
+    "rarity": "R",
+    "hp": 1,
+    "atk": 4,
+    "def": 1,
+    "spd": 6
+  }
+  ,{
+    "char": "絶",
+    "element": "neutral",
+    "role": "attack",
+    "rarity": "SR",
+    "hp": 1,
+    "atk": 7,
+    "def": 2,
+    "spd": 3
+  }
+  ,{
+    "char": "劫",
+    "element": "dark",
+    "role": "attack",
+    "rarity": "SR",
+    "hp": 1,
+    "atk": 6,
+    "def": 4,
+    "spd": 3
+  }
+  ,{
+    "char": "業",
+    "element": "dark",
+    "role": "debuff",
+    "rarity": "SR",
+    "hp": 0,
+    "atk": 5,
+    "def": 3,
+    "spd": 4
+  }
+  ,{
+    "char": "使",
+    "element": "light",
+    "role": "heal",
+    "rarity": "SR",
+    "hp": 4,
+    "atk": 1,
+    "def": 4,
+    "spd": 2
+  }
+  ,{
+    "char": "煌",
+    "element": "light",
+    "role": "utility",
+    "rarity": "SR",
+    "hp": 3,
+    "atk": 3,
+    "def": 4,
+    "spd": 3
+  }
+  ,{
+    "char": "青龍",
+    "element": "thunder",
+    "role": "attack",
+    "rarity": "SR",
+    "hp": 2,
+    "atk": 7,
+    "def": 3,
+    "spd": 5
+  }
+  ,{
+    "char": "白虎",
+    "element": "neutral",
+    "role": "attack",
+    "rarity": "SR",
+    "hp": 2,
+    "atk": 7,
+    "def": 3,
+    "spd": 4
+  }
+  ,{
+    "char": "玄武",
+    "element": "dark",
+    "role": "defense",
+    "rarity": "SR",
+    "hp": 5,
+    "atk": 3,
+    "def": 9,
+    "spd": 1
+  }
+  ,{
+    "char": "朱雀",
+    "element": "fire",
+    "role": "speed",
+    "rarity": "SSR",
+    "hp": 2,
+    "atk": 7,
+    "def": 3,
+    "spd": 7
+  }
+  ,{
+    "char": "覇王",
+    "element": "neutral",
+    "role": "attack",
+    "rarity": "SSR",
+    "hp": 3,
+    "atk": 9,
+    "def": 4,
+    "spd": 3
+  }
+  ,{
+    "char": "混沌",
+    "element": "dark",
+    "role": "utility",
+    "rarity": "SSR",
+    "hp": 2,
+    "atk": 6,
+    "def": 6,
+    "spd": 6
+  }
+  ,{
+    "char": "大魔王",
+    "element": "dark",
+    "role": "attack",
+    "rarity": "SSR",
+    "hp": 2,
+    "atk": 12,
+    "def": 4,
+    "spd": 4
+  }
+  ,{
+    "char": "無双",
+    "element": "neutral",
+    "role": "utility",
+    "rarity": "SSR",
+    "hp": 4,
+    "atk": 8,
+    "def": 8,
+    "spd": 8
+  }
+  ,{
+    "char": "四神",
+    "element": "light",
+    "role": "heal",
+    "rarity": "SSR",
+    "hp": 8,
+    "atk": 4,
+    "def": 8,
+    "spd": 4
+  }
 ];
 
 const INSP_MAP = {
@@ -1621,4 +2081,45 @@ const INSP_MAP = {
   "滅|神": "冥",
   "冥|凰": "覇",
   "極|覇": "零"
+
+  ,"刃|武": "斬"
+  ,"炭|煙": "焦"
+  ,"炎|朱": "焦"
+  ,"川|海": "渦"
+  ,"舞|風": "廻"
+  ,"凍|山": "嶺"
+  ,"霧|氷": "璃"
+  ,"亡|幻": "獄"
+  ,"影|幽": "玄"
+  ,"禍|闇": "沌"
+  ,"岩|禍": "崩"
+  ,"術|武": "武術"
+  ,"忍|術": "忍術"
+  ,"日|月": "明"
+  ,"刀|心": "忍"
+  ,"幻|術": "幽"
+  ,"将|斬": "絶"
+  ,"獄|邪": "劫"
+  ,"沌|魔": "劫"
+  ,"獄|幽": "業"
+  ,"暁|輝": "煌"
+  ,"明|聖": "使"
+  ,"蒼|龍": "青龍"
+  ,"白|虎": "白虎"
+  ,"岩|玄": "玄武"
+  ,"凰|朱": "朱雀"
+  ,"絶|覇": "覇王"
+  ,"業|劫": "混沌"
+  ,"劫|冥": "大魔王"
+  ,"冥|幽": "大魔王"
+  ,"神|覇王": "無双"
+  ,"混沌|神": "無双"
+  ,"白虎|青龍": "四神"
+  ,"玄武|朱雀": "四神"
+  ,"川|嵐": "渦"
+  ,"刃|忍": "斬"
+  ,"崩|岩": "嶺"
+  ,"朱|鳳": "朱雀"
+  ,"絶|王": "覇王"
+
 };
