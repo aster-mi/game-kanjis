@@ -984,6 +984,22 @@ body {
 }
 .insp-tree-plus { font-size: 10px; color: var(--text-dim); }
 
+/* ツリー: 入力文字のレアリティバッジ */
+.insp-tree-in-rar {
+  font-size: 8px; font-family: 'DotGothic16', monospace;
+  flex-shrink: 0; align-self: flex-end; margin-bottom: 2px;
+  opacity: .85;
+}
+/* ツリー: サブ見出し（「Xの入手方法」ラベル行） */
+.insp-tree-sub-label {
+  display: flex; align-items: center; gap: 5px;
+  padding: 2px 0;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+.insp-tree-sub-label-txt {
+  font-size: 8px; color: var(--text-dim); white-space: nowrap;
+}
+
 /* ===========================
    ロースター（なかま管理）
    =========================== */

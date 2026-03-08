@@ -2126,9 +2126,102 @@ async function inspTree() {
     }
   }
 
-  // ── ツリー表示 ──
+  // ── ツリー表示（N階層再帰版） ──
   function renderTree() {
     content.innerHTML = '';
+    const MAX_DEPTH = 8;  // 再帰上限
+    const INDENT    = 14; // px/階層
+
+    /**
+     * ch の入手レシピ一覧を DocumentFragment で返す（再帰）
+     * @param {string}  ch      対象文字
+     * @param {number}  depth   現在の深さ（0 = トップレベルのレシピ行）
+     * @param {Set}     visited 循環防止
+     */
+    function makeRecipeRows(ch, depth, visited) {
+      const recs = recipes[ch];
+      if (!recs || visited.has(ch) || depth > MAX_DEPTH) return null;
+
+      const newVis = new Set(visited);
+      newVis.add(ch);
+      const frag = document.createDocumentFragment();
+
+      recs.forEach((inputs, ri) => {
+        const isLast = ri === recs.length - 1;
+
+        // ── レシピ行 ──
+        const row = document.createElement('div');
+        row.className = 'insp-tree-recipe';
+        row.style.paddingLeft = depth * INDENT + 'px';
+        // 先頭行のみ border-top を消す（depth=0の1行目）
+        if (depth === 0 && ri === 0) row.style.borderTop = 'none';
+
+        const br = document.createElement('span');
+        br.className = 'insp-tree-branch';
+        br.textContent = isLast ? '└' : '├';
+        row.appendChild(br);
+
+        inputs.forEach((inCh, i) => {
+          if (i > 0) {
+            const p = document.createElement('span');
+            p.className = 'insp-tree-plus'; p.textContent = '+';
+            row.appendChild(p);
+          }
+          const inCd  = G.allChars[inCh] || {};
+          const inOk  = !!G.unlocked[inCh];
+          const inRar = inCd.rarity || 'N';
+          const box   = document.createElement('div');
+          box.className = `insp-tree-in-box ${ELEM_CLASS[inCd.element] || 'elem-neutral'}${inOk ? '' : ' insp-locked-char'}`;
+          box.textContent = inCh;
+          row.appendChild(box);
+          // N 以外はレアリティバッジ
+          if (inRar !== 'N') {
+            const rb = document.createElement('span');
+            rb.className = 'insp-tree-in-rar';
+            rb.textContent = inRar;
+            if (RAR_COL[inRar]) rb.style.color = RAR_COL[inRar];
+            row.appendChild(rb);
+          }
+        });
+        frag.appendChild(row);
+
+        // ── 各入力文字のサブツリー ──
+        inputs.forEach(inCh => {
+          if (newVis.has(inCh) || !recipes[inCh]) return;
+
+          // サブ見出し行: [inCh] の入手方法 ▸
+          const inCd  = G.allChars[inCh] || {};
+          const inRar = inCd.rarity || 'N';
+          const inOk  = !!G.unlocked[inCh];
+
+          const lbl = document.createElement('div');
+          lbl.className = 'insp-tree-sub-label';
+          lbl.style.paddingLeft = (depth + 1) * INDENT + 'px';
+
+          const lbox = document.createElement('div');
+          lbox.className = `insp-tree-in-box ${ELEM_CLASS[inCd.element] || 'elem-neutral'}${inOk ? '' : ' insp-locked-char'}`;
+          if (RAR_COL[inRar]) lbox.style.borderColor = RAR_COL[inRar];
+          lbox.textContent = inCh;
+
+          const ltxt = document.createElement('span');
+          ltxt.className = 'insp-tree-sub-label-txt';
+          ltxt.textContent = `の入手方法 (${inRar})`;
+          if (RAR_COL[inRar]) ltxt.style.color = RAR_COL[inRar];
+
+          lbl.appendChild(lbox);
+          lbl.appendChild(ltxt);
+          frag.appendChild(lbl);
+
+          // 再帰
+          const sub = makeRecipeRows(inCh, depth + 2, newVis);
+          if (sub) frag.appendChild(sub);
+        });
+      });
+
+      return frag;
+    }
+
+    // ── 各出力文字のツリーノード ──
     for (const outCh of sortedOuts) {
       const outCd   = G.allChars[outCh] || {};
       const outRar  = outCd.rarity || 'N';
@@ -2138,15 +2231,13 @@ async function inspTree() {
       const node = document.createElement('div');
       node.className = 'insp-tree-node' + (outOk ? ' insp-unlocked' : '');
 
-      // 出力文字ヘッダー行
+      // 出力文字ヘッダー
       const outRow = document.createElement('div');
       outRow.className = 'insp-tree-output-row';
-
       const outBox = document.createElement('div');
       outBox.className = `insp-tree-out-box ${ELEM_CLASS[outElem] || 'elem-neutral'}${outOk ? ' insp-output-glow' : ''}`;
       if (RAR_COL[outRar]) outBox.style.borderColor = RAR_COL[outRar];
       outBox.textContent = outCh;
-
       const outInfo = document.createElement('div');
       outInfo.className = 'insp-tree-out-info';
       const outName = document.createElement('div');
@@ -2158,39 +2249,16 @@ async function inspTree() {
       outRarLine.textContent = `${RARITY_ICON[outRar] || outRar} ${outRar}  ${outOk ? '✓ 解禁済' : '未解禁'}`;
       if (outOk && RAR_COL[outRar]) outRarLine.style.color = RAR_COL[outRar];
       outInfo.appendChild(outName); outInfo.appendChild(outRarLine);
-
       outRow.appendChild(outBox); outRow.appendChild(outInfo);
       node.appendChild(outRow);
 
-      // レシピ一覧（枝）
+      // レシピ（再帰ツリー）
       const recipesDiv = document.createElement('div');
       recipesDiv.className = 'insp-tree-recipes';
-      for (const inputs of recipes[outCh]) {
-        const row = document.createElement('div');
-        row.className = 'insp-tree-recipe';
-
-        const branch = document.createElement('span');
-        branch.className = 'insp-tree-branch';
-        branch.textContent = recipes[outCh].indexOf(inputs) === recipes[outCh].length - 1 ? '└' : '├';
-        row.appendChild(branch);
-
-        for (let i = 0; i < inputs.length; i++) {
-          if (i > 0) {
-            const plus = document.createElement('span');
-            plus.className = 'insp-tree-plus'; plus.textContent = '+';
-            row.appendChild(plus);
-          }
-          const inCh = inputs[i];
-          const inCd = G.allChars[inCh] || {};
-          const inOk = !!G.unlocked[inCh];
-          const box  = document.createElement('div');
-          box.className = `insp-tree-in-box ${ELEM_CLASS[inCd.element] || 'elem-neutral'}${inOk ? '' : ' insp-locked-char'}`;
-          box.textContent = inCh;
-          row.appendChild(box);
-        }
-        recipesDiv.appendChild(row);
-      }
+      const sub = makeRecipeRows(outCh, 0, new Set());
+      if (sub) recipesDiv.appendChild(sub);
       node.appendChild(recipesDiv);
+
       content.appendChild(node);
     }
   }
