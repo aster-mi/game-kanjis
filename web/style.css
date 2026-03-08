@@ -412,7 +412,7 @@ body {
    =========================== */
 #screen-text {
   flex: 1;
-  min-height: 0;        /* flex child が縮みきれなくなるのを防ぐ（iOS Safari 対策） */
+  min-height: 60px;
   overflow-y: auto;
   overflow-x: hidden;
   color: var(--text);
@@ -422,6 +422,11 @@ body {
   scrollbar-width: thin;
   scrollbar-color: var(--border2) transparent;
   word-break: break-all;
+}
+
+/* グラフィック表示中のときだけテキスト高さを制限 → ボタンが上に来る */
+#screen-graphics:not(.hidden) ~ #screen-text {
+  max-height: clamp(110px, 26vh, 200px);
 }
 
 .screen-line {
@@ -520,14 +525,118 @@ body {
   background: transparent;
 }
 
-/* 続けるボタン */
-.action-btn.pause-btn {
-  border-color: var(--border2);
-  color: var(--text-mid);
-  background: transparent;
-  font-size: 12px;
+/* タップで続行インジケーター */
+.tap-indicator {
+  color: var(--text-dim);
+  font-size: 11px;
+  text-align: right;
+  padding-right: 8px;
+  margin-top: 2px;
+  animation: tap-blink 1s ease-in-out infinite;
 }
-.action-btn.pause-btn:hover { background: var(--surface2); }
+@keyframes tap-blink {
+  0%, 100% { opacity: 0.2; }
+  50%       { opacity: 0.75; }
+}
+
+/* ===========================
+   バトルログ スタイル
+   =========================== */
+
+/* 攻撃ログ行 */
+.b-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 4px;
+  margin: 1px 0;
+  flex-wrap: wrap;
+  animation: fadeIn 0.08s ease-out;
+}
+
+/* モンスター名バッジ */
+.b-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  padding: 0 4px;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.b-name.b-name-p { background: rgba(40,130,255,0.10); }
+.b-name.b-name-e { background: rgba(255,40,60,0.10); }
+
+/* 矢印 */
+.b-arr {
+  font-size: 11px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+/* ダメージ数値 */
+.b-dmg {
+  font-size: 15px;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+.b-dmg-p { color: #FFD860; text-shadow: 0 0 6px rgba(255,200,60,0.5); }
+.b-dmg-e { color: #FF6680; text-shadow: 0 0 6px rgba(255,40,60,0.5); }
+
+/* ダメージラベル */
+.b-lbl { font-size: 9px; color: var(--text-dim); }
+
+/* ぞくせいゆうり */
+.b-adv {
+  font-size: 9px;
+  color: var(--rar-sr);
+  background: rgba(244,200,64,0.10);
+  border: 1px solid rgba(244,200,64,0.30);
+  border-radius: 3px;
+  padding: 0 3px;
+  white-space: nowrap;
+}
+
+/* HP状態行 */
+.b-hp-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 4px;
+  animation: fadeIn 0.08s ease-out;
+}
+.b-hp-name {
+  font-size: 11px;
+  white-space: nowrap;
+  min-width: 28px;
+}
+.b-hp-bar {
+  width: 52px; height: 5px;
+  background: var(--surface3);
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.b-hp-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(to right, #44CC88, #66EE99);
+}
+.b-hp-fill.hp-mid  { background: linear-gradient(to right, #AACC22, #CCDD44); }
+.b-hp-fill.hp-low  { background: linear-gradient(to right, #CC6600, #EE8800); }
+.b-hp-fill.hp-crit { background: linear-gradient(to right, #AA1100, #DD2200); animation: blink-fill 0.6s infinite; }
+.b-hp-num { font-size: 9px; color: var(--text-mid); white-space: nowrap; }
+.b-ko {
+  font-size: 9px;
+  color: var(--enemy-col);
+  border: 1px solid var(--enemy-col);
+  border-radius: 3px;
+  padding: 0 3px;
+  line-height: 1.4;
+}
 
 /* ===========================
    文字タイルピッカー
@@ -723,6 +832,218 @@ body {
 .insp-output-label {
   font-size: 9px;
   color: var(--text-dim);
+}
+
+/* ===========================
+   ロースター（なかま管理）
+   =========================== */
+
+/* ロースターモード時のレイアウト変更 */
+#screen.roster-mode #screen-text   { display: none; }
+#screen.roster-mode .btn-area-divider { display: none; }
+#screen.roster-mode #screen-buttons {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+#screen.roster-mode #btn-container {
+  flex: 1; min-height: 0; padding: 0;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+
+/* ロースター全体ラッパー */
+.roster-wrap {
+  display: flex; flex-direction: column;
+  width: 100%; height: 100%; overflow: hidden;
+}
+
+/* ─── パーティセクション ─── */
+.roster-party-section {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(to bottom, var(--surface3), var(--surface2));
+  padding: 6px 8px 8px;
+}
+.roster-section-label {
+  font-size: 10px; color: var(--text-dim);
+  margin-bottom: 5px; letter-spacing: 0.3px;
+}
+.roster-section-label.swap-mode {
+  color: var(--rar-sr);
+  animation: blink-swap 0.65s ease-in-out infinite alternate;
+}
+@keyframes blink-swap {
+  from { opacity: 0.55; } to { opacity: 1; }
+}
+
+.roster-party-row { display: flex; gap: 6px; }
+
+.roster-party-slot {
+  flex: 1; min-height: 90px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  font-size: 10px; color: var(--text-dim);
+  background: rgba(255,255,255,0.01);
+  position: relative; overflow: hidden;
+  transition: border-color 0.12s, background 0.12s, box-shadow 0.12s;
+}
+.roster-party-slot.filled {
+  border-style: solid; border-color: var(--party-col);
+  background: var(--party-bg); cursor: pointer;
+}
+.roster-party-slot.filled.leader {
+  border-color: #FFD060;
+  box-shadow: 0 0 8px rgba(255,208,96,0.2);
+}
+.roster-party-slot.filled:hover {
+  border-color: var(--enemy-col);
+  background: var(--enemy-bg);
+}
+.roster-party-slot.filled.no-remove { cursor: default; }
+.roster-party-slot.filled.no-remove:hover {
+  border-color: var(--party-col); background: var(--party-bg); box-shadow: none;
+}
+.roster-party-slot.filled.leader.no-remove {
+  border-color: #FFD060; box-shadow: 0 0 8px rgba(255,208,96,0.2);
+}
+.roster-party-slot.filled.swap-select {
+  border-color: var(--rar-sr);
+  box-shadow: 0 0 10px rgba(244,200,64,0.3); cursor: pointer;
+}
+.roster-party-slot.filled.swap-select:hover {
+  border-color: var(--btn-ok-brd); background: var(--btn-ok-bg);
+  box-shadow: 0 0 12px rgba(50,200,100,0.3);
+}
+
+.slot-leader-mark {
+  position: absolute; top: 3px; left: 4px;
+  font-size: 8px; color: #FFD060; pointer-events: none;
+}
+.slot-rar-badge {
+  position: absolute; top: 3px; right: 4px;
+  font-size: 9px; color: var(--text-dim); pointer-events: none;
+}
+.rarity-R  .slot-rar-badge { color: var(--rar-r); }
+.rarity-SR .slot-rar-badge { color: var(--rar-sr); }
+.rarity-SSR .slot-rar-badge { color: var(--rar-ssr); }
+
+.slot-content {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 1px; width: 100%; padding: 4px;
+  pointer-events: none;
+}
+.slot-elem { font-size: 14px; line-height: 1; }
+.slot-name {
+  font-size: 26px; line-height: 1;
+  filter: drop-shadow(0 0 4px currentColor);
+}
+.slot-name.len2 { font-size: 19px; }
+.slot-name.len3 { font-size: 15px; }
+.slot-lv { font-size: 8px; color: var(--text-dim); margin-top: 1px; }
+.slot-hp-bar {
+  width: 78%; height: 3px;
+  background: var(--surface3); border-radius: 2px; overflow: hidden; margin-top: 3px;
+}
+.slot-hp-fill { height: 100%; background: #44CC88; border-radius: 2px; transition: width 0.3s; }
+.slot-remove-hint {
+  position: absolute; bottom: 2px;
+  font-size: 7px; color: var(--text-dim);
+  opacity: 0; transition: opacity 0.12s; pointer-events: none;
+}
+.roster-party-slot.filled:not(.no-remove):hover .slot-remove-hint {
+  opacity: 1; color: var(--enemy-col);
+}
+.slot-swap-hint {
+  position: absolute; bottom: 2px;
+  font-size: 7px; color: var(--rar-sr); pointer-events: none;
+}
+
+/* ─── ボックスセクション ─── */
+.roster-box-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 4px 10px; font-size: 10px; color: var(--text-dim);
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.roster-box-scroll {
+  flex: 1; min-height: 0; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: var(--border2) transparent;
+}
+.roster-box-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 5px; padding: 6px;
+}
+.roster-empty-msg {
+  grid-column: 1 / -1; text-align: center;
+  color: var(--text-dim); font-size: 11px; padding: 16px;
+}
+
+/* ロースターカード（ボックス・選択用） */
+.roster-card {
+  border: 1px solid var(--border2);
+  border-radius: 6px; background: var(--surface2);
+  padding: 5px 4px 4px;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 1px;
+  cursor: pointer; position: relative;
+  transition: border-color 0.1s, background 0.1s, box-shadow 0.1s;
+  min-height: 78px;
+}
+.roster-card:hover {
+  border-color: var(--party-col); background: var(--party-bg);
+  box-shadow: 0 0 6px rgba(40,130,255,0.2);
+}
+.roster-card.rarity-R   { border-color: rgba(68,187,238,0.28); }
+.roster-card.rarity-SR  { border-color: rgba(244,200,64,0.28); }
+.roster-card.rarity-SSR { border-color: rgba(255,112,64,0.28); }
+.roster-card.rarity-R:hover   { border-color: var(--rar-r);   box-shadow: 0 0 8px rgba(68,187,238,0.3); }
+.roster-card.rarity-SR:hover  { border-color: var(--rar-sr);  box-shadow: 0 0 8px rgba(244,200,64,0.3); }
+.roster-card.rarity-SSR:hover { border-color: var(--rar-ssr); box-shadow: 0 0 8px rgba(255,112,64,0.3); }
+.roster-card.in-party {
+  border-style: dashed; opacity: 0.42;
+  cursor: default; pointer-events: none;
+}
+.roster-card.add-mode:hover {
+  border-color: var(--btn-ok-brd); background: var(--btn-ok-bg);
+  box-shadow: 0 0 8px rgba(50,200,100,0.25);
+}
+.roster-card.swap-dim {
+  opacity: 0.3; cursor: default; pointer-events: none;
+}
+
+.rc-badge {
+  position: absolute; top: 2px; right: 3px;
+  font-size: 8px; color: var(--text-dim);
+}
+.rarity-R  .rc-badge { color: var(--rar-r); }
+.rarity-SR .rc-badge { color: var(--rar-sr); }
+.rarity-SSR .rc-badge { color: var(--rar-ssr); }
+.rc-elem  { font-size: 13px; line-height: 1; }
+.rc-kanji {
+  font-size: 22px; line-height: 1;
+  filter: drop-shadow(0 0 3px currentColor);
+}
+.rc-kanji.len2 { font-size: 16px; }
+.rc-kanji.len3 { font-size: 13px; }
+.rc-lv  { font-size: 8px; color: var(--text-dim); }
+.rc-role { font-size: 7px; color: var(--text-dim); opacity: 0.7; }
+.rc-hp {
+  width: 80%; height: 3px;
+  background: var(--surface3); border-radius: 2px; overflow: hidden; margin-top: 2px;
+}
+.rc-hp-fill { height: 100%; background: #44CC88; border-radius: 2px; }
+
+/* ─── アクションボタン行 ─── */
+.roster-action-row {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 5px; padding: 5px 6px;
+  padding-bottom: max(6px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  flex-shrink: 0; background: var(--surface);
+}
+.roster-action-row .action-btn {
+  font-size: 12px; padding: 10px 4px;
 }
 
 /* ===== Animations ===== */
