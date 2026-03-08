@@ -960,11 +960,16 @@ async function gameStart() {
   print('  世界を旅しよう。');
   print();
 
-  const idx = await menu('', ['はじめから', 'ぼうけんのしょをよむ']);
-  if (idx === 1) {
-    const loaded = await loadMenu(true);
-    if (!loaded) { gameStart(); return; }
+  if (slotInfo(1) !== '(空)') {
+    // S1 にセーブあり → 自動ロード
+    print(`  ◆ ${slotInfo(1)}`, 'dim');
+    print();
+    await pause();
+    loadGame(1);
+    G.autoSaveSlot = 1;
   } else {
+    // セーブなし → 新規スタート
+    await pause();
     createStarter();
   }
   mainLoop();
@@ -2007,95 +2012,204 @@ async function inspTree() {
   const unlockedCnt = sortedOuts.filter(ch => G.unlocked[ch]).length;
   const RAR_COL = { R: 'var(--rar-r)', SR: 'var(--rar-sr)', SSR: 'var(--rar-ssr)' };
 
+  // ── ヘルパー：入力文字ブロック（小） ──
+  function makeInBox(inCh) {
+    const inCd  = G.allChars[inCh] || {};
+    const inOk  = !!G.unlocked[inCh];
+    const box   = document.createElement('div');
+    box.className = `insp-kanji-box ${ELEM_CLASS[inCd.element] || 'elem-neutral'}${inOk ? '' : ' insp-locked-char'}`;
+    box.textContent = inCh;
+    return box;
+  }
+
   const wrap = document.createElement('div');
   wrap.className = 'insp-map-wrap';
 
   // ── ヘッダー ──
   const hdr = document.createElement('div');
   hdr.className = 'insp-map-header';
-  const hdrL = document.createElement('span');
-  hdrL.className = 'insp-map-title-text';
-  hdrL.textContent = '■ ひらめきマップ';
+
+  const hdrLeft = document.createElement('div');
+  hdrLeft.style.display = 'flex'; hdrLeft.style.flexDirection = 'column'; hdrLeft.style.gap = '5px';
+
+  const hdrTitle = document.createElement('span');
+  hdrTitle.className = 'insp-map-title-text';
+  hdrTitle.textContent = '■ ひらめきマップ';
+
+  // タブボタン
+  const tabs = document.createElement('div');
+  tabs.className = 'insp-tabs';
+  const tabList = document.createElement('button');
+  tabList.className = 'insp-tab active';
+  tabList.textContent = 'リスト';
+  const tabTree = document.createElement('button');
+  tabTree.className = 'insp-tab';
+  tabTree.textContent = 'ツリー';
+  tabs.appendChild(tabList);
+  tabs.appendChild(tabTree);
+
+  hdrLeft.appendChild(hdrTitle);
+  hdrLeft.appendChild(tabs);
+
   const hdrR = document.createElement('span');
   hdrR.className = 'insp-map-count';
   hdrR.textContent = `解禁 ${unlockedCnt} / ${sortedOuts.length}`;
-  hdr.appendChild(hdrL);
+
+  hdr.appendChild(hdrLeft);
   hdr.appendChild(hdrR);
   wrap.appendChild(hdr);
 
-  // ── レシピカード一覧 ──
-  for (const outCh of sortedOuts) {
-    const outCd   = G.allChars[outCh] || {};
-    const outRar  = outCd.rarity || 'N';
-    const outElem = outCd.element || 'neutral';
-    const outOk   = !!G.unlocked[outCh];
+  // ── コンテンツエリア ──
+  const content = document.createElement('div');
+  wrap.appendChild(content);
 
-    for (const inputs of recipes[outCh]) {
-      const card = document.createElement('div');
-      card.className = 'insp-card' + (outOk ? ' insp-unlocked' : '');
+  // ── リスト表示（デフォルト） ──
+  function renderList() {
+    content.innerHTML = '';
+    for (const outCh of sortedOuts) {
+      const outCd   = G.allChars[outCh] || {};
+      const outRar  = outCd.rarity || 'N';
+      const outElem = outCd.element || 'neutral';
+      const outOk   = !!G.unlocked[outCh];
 
-      // 入力文字群
-      const inputsDiv = document.createElement('div');
-      inputsDiv.className = 'insp-inputs';
+      for (const inputs of recipes[outCh]) {
+        const card = document.createElement('div');
+        card.className = 'insp-card' + (outOk ? ' insp-unlocked' : '');
 
-      for (let i = 0; i < inputs.length; i++) {
-        if (i > 0) {
-          const plus = document.createElement('span');
-          plus.className = 'insp-plus';
-          plus.textContent = '+';
-          inputsDiv.appendChild(plus);
+        // 入力文字群
+        const inputsDiv = document.createElement('div');
+        inputsDiv.className = 'insp-inputs';
+        for (let i = 0; i < inputs.length; i++) {
+          if (i > 0) {
+            const plus = document.createElement('span');
+            plus.className = 'insp-plus'; plus.textContent = '+';
+            inputsDiv.appendChild(plus);
+          }
+          const inCh = inputs[i];
+          const inCd = G.allChars[inCh] || {};
+          const inRar = inCd.rarity || '?';
+          const inOk  = !!G.unlocked[inCh];
+          const block = document.createElement('div');
+          block.className = 'insp-char-block';
+          const box = document.createElement('div');
+          box.className = `insp-kanji-box ${ELEM_CLASS[inCd.element] || 'elem-neutral'}${inOk ? '' : ' insp-locked-char'}`;
+          box.textContent = inCh;
+          const lbl = document.createElement('div');
+          lbl.className = 'insp-char-label';
+          lbl.textContent = RARITY_ICON[inRar] || inRar;
+          if (RAR_COL[inRar]) lbl.style.color = RAR_COL[inRar];
+          block.appendChild(box); block.appendChild(lbl);
+          inputsDiv.appendChild(block);
         }
-        const inCh  = inputs[i];
-        const inCd  = G.allChars[inCh] || {};
-        const inRar = inCd.rarity || '?';
-        const inOk  = !!G.unlocked[inCh];
+        card.appendChild(inputsDiv);
 
-        const block = document.createElement('div');
-        block.className = 'insp-char-block';
+        const arrow = document.createElement('div');
+        arrow.className = 'insp-arrow'; arrow.textContent = '▶';
+        card.appendChild(arrow);
 
-        const box = document.createElement('div');
-        box.className = `insp-kanji-box ${ELEM_CLASS[inCd.element] || 'elem-neutral'}${inOk ? '' : ' insp-locked-char'}`;
-        box.textContent = inCh;
+        // 出力文字
+        const outBlock = document.createElement('div');
+        outBlock.className = 'insp-output-block';
+        const outBox = document.createElement('div');
+        outBox.className = `insp-output-box ${ELEM_CLASS[outElem] || 'elem-neutral'}${outOk ? ' insp-output-glow' : ''}`;
+        if (RAR_COL[outRar]) outBox.style.borderColor = RAR_COL[outRar];
+        outBox.textContent = outCh;
+        const outLbl = document.createElement('div');
+        outLbl.className = 'insp-output-label';
+        outLbl.textContent = (RARITY_ICON[outRar] || outRar) + (outOk ? '  解禁✓' : '  未解禁');
+        if (outOk && RAR_COL[outRar]) outLbl.style.color = RAR_COL[outRar];
+        outBlock.appendChild(outBox); outBlock.appendChild(outLbl);
+        card.appendChild(outBlock);
 
-        const lbl = document.createElement('div');
-        lbl.className = 'insp-char-label';
-        lbl.textContent = RARITY_ICON[inRar] || inRar;
-        if (RAR_COL[inRar]) lbl.style.color = RAR_COL[inRar];
-
-        block.appendChild(box);
-        block.appendChild(lbl);
-        inputsDiv.appendChild(block);
+        content.appendChild(card);
       }
-      card.appendChild(inputsDiv);
-
-      // 矢印
-      const arrow = document.createElement('div');
-      arrow.className = 'insp-arrow';
-      arrow.textContent = '▶';
-      card.appendChild(arrow);
-
-      // 出力文字
-      const outBlock = document.createElement('div');
-      outBlock.className = 'insp-output-block';
-
-      const outBox = document.createElement('div');
-      outBox.className = `insp-output-box ${ELEM_CLASS[outElem] || 'elem-neutral'}${outOk ? ' insp-output-glow' : ''}`;
-      if (RAR_COL[outRar]) outBox.style.borderColor = RAR_COL[outRar];
-      outBox.textContent = outCh;
-
-      const outLbl = document.createElement('div');
-      outLbl.className = 'insp-output-label';
-      outLbl.textContent = (RARITY_ICON[outRar] || outRar) + (outOk ? '  解禁✓' : '  未解禁');
-      if (outOk && RAR_COL[outRar]) outLbl.style.color = RAR_COL[outRar];
-
-      outBlock.appendChild(outBox);
-      outBlock.appendChild(outLbl);
-      card.appendChild(outBlock);
-
-      wrap.appendChild(card);
     }
   }
 
+  // ── ツリー表示 ──
+  function renderTree() {
+    content.innerHTML = '';
+    for (const outCh of sortedOuts) {
+      const outCd   = G.allChars[outCh] || {};
+      const outRar  = outCd.rarity || 'N';
+      const outElem = outCd.element || 'neutral';
+      const outOk   = !!G.unlocked[outCh];
+
+      const node = document.createElement('div');
+      node.className = 'insp-tree-node' + (outOk ? ' insp-unlocked' : '');
+
+      // 出力文字ヘッダー行
+      const outRow = document.createElement('div');
+      outRow.className = 'insp-tree-output-row';
+
+      const outBox = document.createElement('div');
+      outBox.className = `insp-tree-out-box ${ELEM_CLASS[outElem] || 'elem-neutral'}${outOk ? ' insp-output-glow' : ''}`;
+      if (RAR_COL[outRar]) outBox.style.borderColor = RAR_COL[outRar];
+      outBox.textContent = outCh;
+
+      const outInfo = document.createElement('div');
+      outInfo.className = 'insp-tree-out-info';
+      const outName = document.createElement('div');
+      outName.className = 'insp-tree-out-name';
+      outName.textContent = outCh;
+      if (RAR_COL[outRar]) outName.style.color = RAR_COL[outRar];
+      const outRarLine = document.createElement('div');
+      outRarLine.className = 'insp-tree-out-rar';
+      outRarLine.textContent = `${RARITY_ICON[outRar] || outRar} ${outRar}  ${outOk ? '✓ 解禁済' : '未解禁'}`;
+      if (outOk && RAR_COL[outRar]) outRarLine.style.color = RAR_COL[outRar];
+      outInfo.appendChild(outName); outInfo.appendChild(outRarLine);
+
+      outRow.appendChild(outBox); outRow.appendChild(outInfo);
+      node.appendChild(outRow);
+
+      // レシピ一覧（枝）
+      const recipesDiv = document.createElement('div');
+      recipesDiv.className = 'insp-tree-recipes';
+      for (const inputs of recipes[outCh]) {
+        const row = document.createElement('div');
+        row.className = 'insp-tree-recipe';
+
+        const branch = document.createElement('span');
+        branch.className = 'insp-tree-branch';
+        branch.textContent = recipes[outCh].indexOf(inputs) === recipes[outCh].length - 1 ? '└' : '├';
+        row.appendChild(branch);
+
+        for (let i = 0; i < inputs.length; i++) {
+          if (i > 0) {
+            const plus = document.createElement('span');
+            plus.className = 'insp-tree-plus'; plus.textContent = '+';
+            row.appendChild(plus);
+          }
+          const inCh = inputs[i];
+          const inCd = G.allChars[inCh] || {};
+          const inOk = !!G.unlocked[inCh];
+          const box  = document.createElement('div');
+          box.className = `insp-tree-in-box ${ELEM_CLASS[inCd.element] || 'elem-neutral'}${inOk ? '' : ' insp-locked-char'}`;
+          box.textContent = inCh;
+          row.appendChild(box);
+        }
+        recipesDiv.appendChild(row);
+      }
+      node.appendChild(recipesDiv);
+      content.appendChild(node);
+    }
+  }
+
+  // タブ切り替え（stopPropagation でバックグラウンドのpauseを誤発火させない）
+  tabList.addEventListener('click', e => {
+    e.stopPropagation();
+    tabList.className = 'insp-tab active';
+    tabTree.className = 'insp-tab';
+    renderList();
+  });
+  tabTree.addEventListener('click', e => {
+    e.stopPropagation();
+    tabList.className = 'insp-tab';
+    tabTree.className = 'insp-tab active';
+    renderTree();
+  });
+
+  renderList();
   $text().appendChild(wrap);
   await pause();
 }

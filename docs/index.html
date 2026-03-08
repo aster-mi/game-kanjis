@@ -145,11 +145,16 @@
     .scroll-hint {
       position: absolute; bottom: 1.8rem; left: 50%;
       transform: translateX(-50%);
-      font-size: .58rem; letter-spacing: .2em;
-      color: var(--text-dim);
-      animation: blink 2.2s ease-in-out infinite;
+      white-space: nowrap;
+      font-size: .65rem; letter-spacing: .22em;
+      color: #88AADD;
+      text-shadow: 0 0 14px rgba(100,160,255,.7), 0 0 30px rgba(100,160,255,.3);
+      animation: scrollPulse 2.4s ease-in-out infinite;
     }
-    @keyframes blink { 0%,100%{opacity:.25} 50%{opacity:.75} }
+    @keyframes scrollPulse {
+      0%,100% { opacity: .35; transform: translateX(-50%) translateY(0); }
+      50%      { opacity:  1;  transform: translateX(-50%) translateY(4px); }
+    }
 
     /* ─── 共通 ─── */
     .wrap {
@@ -318,7 +323,7 @@
     あなただけの仲間を育て、世界を冒険しよう。
   </p>
   <a href="game.html" class="btn-play">▶&nbsp; ゲームをはじめる</a>
-  <div class="scroll-hint">↓ SCROLL</div>
+  <div class="scroll-hint">↓ &nbsp;スクロール</div>
 </section>
 
 <div class="divider"></div>
