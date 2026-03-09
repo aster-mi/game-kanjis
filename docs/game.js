@@ -2126,77 +2126,95 @@ async function inspTree() {
     }
   }
 
-  // ── グラフィカルノードツリー（N階層再帰） ──
+  // ── DQM配合表スタイル ノードツリー ──
   function renderTree() {
     content.innerHTML = '';
-    const MAX_DEPTH = 6;
+    const MAX_DEPTH = 5;
 
-    // キャラノードを生成  size: 'lg' | 'md' | 'sm'
+    // ── キャラノード生成 ──
     function makeNode(ch, size) {
       const cd  = G.allChars[ch] || {};
       const rar = cd.rarity || 'N';
       const ok  = !!G.unlocked[ch];
-      const node = document.createElement('div');
-      node.className =
-        `ng-node ng-${size} ${ELEM_CLASS[cd.element] || 'elem-neutral'} ng-rar-${rar}` +
-        (ok ? ' ng-ok' : ' ng-locked');
-      const c = document.createElement('div');
-      c.className = 'ng-char'; c.textContent = ch;
-      node.appendChild(c);
-      const r = document.createElement('div');
-      r.className = 'ng-rar-badge';
-      r.textContent = (RARITY_ICON[rar] || rar) + ' ' + rar;
-      if (RAR_COL[rar]) r.style.color = RAR_COL[rar];
-      node.appendChild(r);
-      return node;
+      const el  = ELEM_CLASS[cd.element] || 'elem-neutral';
+      const wrap = document.createElement('div');
+      wrap.className = `dq-node dq-${size} ${el} dq-rar-${rar}` + (ok ? ' dq-ok' : ' dq-locked');
+
+      const kanji = document.createElement('div');
+      kanji.className = 'dq-kanji'; kanji.textContent = ch;
+      wrap.appendChild(kanji);
+
+      const badge = document.createElement('div');
+      badge.className = 'dq-badge';
+      badge.textContent = RARITY_ICON[rar] + rar;
+      if (RAR_COL[rar]) badge.style.color = RAR_COL[rar];
+      wrap.appendChild(badge);
+
+      if (size === 'lg') {
+        const elem = document.createElement('div');
+        elem.className = 'dq-elem-label';
+        const ELEM_JP = {fire:'炎',water:'水',thunder:'雷',ice:'氷',wind:'風',earth:'土',light:'光',dark:'闇',neutral:'無'};
+        elem.textContent = ELEM_JP[cd.element] || '無';
+        wrap.appendChild(elem);
+      }
+      return wrap;
     }
 
-    // inputs 配列から横並びレシピ行を生成
-    function makeRecipeRow(inputs, size) {
+    // ── 配合ペア行 (A × B) ──
+    function makePairRow(inputs) {
       const row = document.createElement('div');
-      row.className = 'ng-recipe-row';
+      row.className = 'dq-pair-row';
       inputs.forEach((inCh, i) => {
         if (i > 0) {
-          const p = document.createElement('span');
-          p.className = 'ng-plus'; p.textContent = '+'; row.appendChild(p);
+          const x = document.createElement('div');
+          x.className = 'dq-cross'; x.textContent = '×';
+          row.appendChild(x);
         }
-        row.appendChild(makeNode(inCh, size));
+        row.appendChild(makeNode(inCh, 'md'));
       });
       return row;
     }
 
-    // ch の入手方法をサブチェーンとして再帰生成
+    // ── サブチェーン再帰 ──
     function makeSubChain(ch, depth, visited) {
       const recs = recipes[ch];
       if (!recs || visited.has(ch) || depth > MAX_DEPTH) return null;
-      const cd  = G.allChars[ch] || {};
+      const cd = G.allChars[ch] || {};
       const rar = cd.rarity || 'N';
       const newVis = new Set(visited); newVis.add(ch);
 
       const wrap = document.createElement('div');
-      wrap.className = 'ng-sub-chain';
+      wrap.className = 'dq-sub-chain';
 
-      // 見出し行
+      // 見出し
       const hdr = document.createElement('div');
-      hdr.className = 'ng-sub-hdr';
-      hdr.appendChild(makeNode(ch, 'sm'));
-      const txt = document.createElement('span');
-      txt.className = 'ng-sub-hdr-txt';
-      txt.textContent = 'の入手方法';
-      if (RAR_COL[rar]) txt.style.color = RAR_COL[rar];
-      hdr.appendChild(txt);
+      hdr.className = 'dq-sub-hdr';
+      const hNode = makeNode(ch, 'sm');
+      hdr.appendChild(hNode);
+      const hTxt = document.createElement('span');
+      hTxt.className = 'dq-sub-hdr-txt';
+      hTxt.textContent = 'のつくり方';
+      if (RAR_COL[rar]) hTxt.style.color = RAR_COL[rar];
+      hdr.appendChild(hTxt);
       wrap.appendChild(hdr);
 
-      // レシピ行 → 再帰
+      const body = document.createElement('div');
+      body.className = 'dq-sub-body';
+
       for (const inputs of recs) {
-        wrap.appendChild(makeRecipeRow(inputs, 'sm'));
+        const recipe = document.createElement('div');
+        recipe.className = 'dq-sub-recipe';
+        recipe.appendChild(makePairRow(inputs));
+        // 再帰
         for (const inCh of inputs) {
           if (!newVis.has(inCh) && recipes[inCh]) {
             const sub = makeSubChain(inCh, depth + 1, newVis);
-            if (sub) wrap.appendChild(sub);
+            if (sub) recipe.appendChild(sub);
           }
         }
+        body.appendChild(recipe);
       }
+      wrap.appendChild(body);
       return wrap;
     }
 
@@ -2206,44 +2224,58 @@ async function inspTree() {
       const outRar = outCd.rarity || 'N';
       const outOk  = !!G.unlocked[outCh];
 
-      const chain = document.createElement('div');
-      chain.className = 'ng-chain' + (outOk ? ' ng-chain-ok' : '');
+      // 外枠カード
+      const card = document.createElement('div');
+      card.className = 'dq-card' + (outOk ? ' dq-card-ok' : '');
+      if (RAR_COL[outRar]) card.style.setProperty('--rar-col', RAR_COL[outRar]);
 
-      // 出力ノード（大）
-      chain.appendChild(makeNode(outCh, 'lg'));
-
-      // 解禁ステータス
+      // ヘッダー: 大ノード + ステータス
+      const hdArea = document.createElement('div');
+      hdArea.className = 'dq-card-hd';
+      hdArea.appendChild(makeNode(outCh, 'lg'));
       const st = document.createElement('div');
-      st.className = 'ng-status-line';
+      st.className = 'dq-card-status';
       st.textContent = outOk ? '✓ 解禁済み' : '─ 未解禁 ─';
       if (outOk && RAR_COL[outRar]) st.style.color = RAR_COL[outRar];
-      chain.appendChild(st);
+      hdArea.appendChild(st);
+      card.appendChild(hdArea);
 
-      // レシピエリア
+      // レシピ一覧
       if (recipes[outCh]) {
-        const arrow = document.createElement('div');
-        arrow.className = 'ng-arrow'; arrow.textContent = '▼';
-        chain.appendChild(arrow);
+        const sep = document.createElement('div');
+        sep.className = 'dq-sep';
+        sep.innerHTML = '<span>─── つくり方 ───</span>';
+        card.appendChild(sep);
 
-        const area = document.createElement('div');
-        area.className = 'ng-recipe-area';
+        const recipesArea = document.createElement('div');
+        recipesArea.className = 'dq-recipes-area';
         const topVis = new Set([outCh]);
 
-        for (const inputs of recipes[outCh]) {
-          const card = document.createElement('div');
-          card.className = 'ng-recipe-card';
-          card.appendChild(makeRecipeRow(inputs, 'md'));
+        recipes[outCh].forEach((inputs, ri) => {
+          const recipeCard = document.createElement('div');
+          recipeCard.className = 'dq-recipe-card';
+
+          if (recipes[outCh].length > 1) {
+            const num = document.createElement('div');
+            num.className = 'dq-recipe-num';
+            num.textContent = `配合${ri + 1}`;
+            recipeCard.appendChild(num);
+          }
+
+          recipeCard.appendChild(makePairRow(inputs));
+
           for (const inCh of inputs) {
             if (!topVis.has(inCh) && recipes[inCh]) {
               const sub = makeSubChain(inCh, 1, topVis);
-              if (sub) card.appendChild(sub);
+              if (sub) recipeCard.appendChild(sub);
             }
           }
-          area.appendChild(card);
-        }
-        chain.appendChild(area);
+          recipesArea.appendChild(recipeCard);
+        });
+        card.appendChild(recipesArea);
       }
-      content.appendChild(chain);
+
+      content.appendChild(card);
     }
   }
 
