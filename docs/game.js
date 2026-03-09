@@ -2126,140 +2126,124 @@ async function inspTree() {
     }
   }
 
-  // ── ツリー表示（N階層再帰版） ──
+  // ── グラフィカルノードツリー（N階層再帰） ──
   function renderTree() {
     content.innerHTML = '';
-    const MAX_DEPTH = 8;  // 再帰上限
-    const INDENT    = 14; // px/階層
+    const MAX_DEPTH = 6;
 
-    /**
-     * ch の入手レシピ一覧を DocumentFragment で返す（再帰）
-     * @param {string}  ch      対象文字
-     * @param {number}  depth   現在の深さ（0 = トップレベルのレシピ行）
-     * @param {Set}     visited 循環防止
-     */
-    function makeRecipeRows(ch, depth, visited) {
-      const recs = recipes[ch];
-      if (!recs || visited.has(ch) || depth > MAX_DEPTH) return null;
-
-      const newVis = new Set(visited);
-      newVis.add(ch);
-      const frag = document.createDocumentFragment();
-
-      recs.forEach((inputs, ri) => {
-        const isLast = ri === recs.length - 1;
-
-        // ── レシピ行 ──
-        const row = document.createElement('div');
-        row.className = 'insp-tree-recipe';
-        row.style.paddingLeft = depth * INDENT + 'px';
-        // 先頭行のみ border-top を消す（depth=0の1行目）
-        if (depth === 0 && ri === 0) row.style.borderTop = 'none';
-
-        const br = document.createElement('span');
-        br.className = 'insp-tree-branch';
-        br.textContent = isLast ? '└' : '├';
-        row.appendChild(br);
-
-        inputs.forEach((inCh, i) => {
-          if (i > 0) {
-            const p = document.createElement('span');
-            p.className = 'insp-tree-plus'; p.textContent = '+';
-            row.appendChild(p);
-          }
-          const inCd  = G.allChars[inCh] || {};
-          const inOk  = !!G.unlocked[inCh];
-          const inRar = inCd.rarity || 'N';
-          const box   = document.createElement('div');
-          box.className = `insp-tree-in-box ${ELEM_CLASS[inCd.element] || 'elem-neutral'}${inOk ? '' : ' insp-locked-char'}`;
-          box.textContent = inCh;
-          row.appendChild(box);
-          // N 以外はレアリティバッジ
-          if (inRar !== 'N') {
-            const rb = document.createElement('span');
-            rb.className = 'insp-tree-in-rar';
-            rb.textContent = inRar;
-            if (RAR_COL[inRar]) rb.style.color = RAR_COL[inRar];
-            row.appendChild(rb);
-          }
-        });
-        frag.appendChild(row);
-
-        // ── 各入力文字のサブツリー ──
-        inputs.forEach(inCh => {
-          if (newVis.has(inCh) || !recipes[inCh]) return;
-
-          // サブ見出し行: [inCh] の入手方法 ▸
-          const inCd  = G.allChars[inCh] || {};
-          const inRar = inCd.rarity || 'N';
-          const inOk  = !!G.unlocked[inCh];
-
-          const lbl = document.createElement('div');
-          lbl.className = 'insp-tree-sub-label';
-          lbl.style.paddingLeft = (depth + 1) * INDENT + 'px';
-
-          const lbox = document.createElement('div');
-          lbox.className = `insp-tree-in-box ${ELEM_CLASS[inCd.element] || 'elem-neutral'}${inOk ? '' : ' insp-locked-char'}`;
-          if (RAR_COL[inRar]) lbox.style.borderColor = RAR_COL[inRar];
-          lbox.textContent = inCh;
-
-          const ltxt = document.createElement('span');
-          ltxt.className = 'insp-tree-sub-label-txt';
-          ltxt.textContent = `の入手方法 (${inRar})`;
-          if (RAR_COL[inRar]) ltxt.style.color = RAR_COL[inRar];
-
-          lbl.appendChild(lbox);
-          lbl.appendChild(ltxt);
-          frag.appendChild(lbl);
-
-          // 再帰
-          const sub = makeRecipeRows(inCh, depth + 2, newVis);
-          if (sub) frag.appendChild(sub);
-        });
-      });
-
-      return frag;
+    // キャラノードを生成  size: 'lg' | 'md' | 'sm'
+    function makeNode(ch, size) {
+      const cd  = G.allChars[ch] || {};
+      const rar = cd.rarity || 'N';
+      const ok  = !!G.unlocked[ch];
+      const node = document.createElement('div');
+      node.className =
+        `ng-node ng-${size} ${ELEM_CLASS[cd.element] || 'elem-neutral'} ng-rar-${rar}` +
+        (ok ? ' ng-ok' : ' ng-locked');
+      const c = document.createElement('div');
+      c.className = 'ng-char'; c.textContent = ch;
+      node.appendChild(c);
+      const r = document.createElement('div');
+      r.className = 'ng-rar-badge';
+      r.textContent = (RARITY_ICON[rar] || rar) + ' ' + rar;
+      if (RAR_COL[rar]) r.style.color = RAR_COL[rar];
+      node.appendChild(r);
+      return node;
     }
 
-    // ── 各出力文字のツリーノード ──
+    // inputs 配列から横並びレシピ行を生成
+    function makeRecipeRow(inputs, size) {
+      const row = document.createElement('div');
+      row.className = 'ng-recipe-row';
+      inputs.forEach((inCh, i) => {
+        if (i > 0) {
+          const p = document.createElement('span');
+          p.className = 'ng-plus'; p.textContent = '+'; row.appendChild(p);
+        }
+        row.appendChild(makeNode(inCh, size));
+      });
+      return row;
+    }
+
+    // ch の入手方法をサブチェーンとして再帰生成
+    function makeSubChain(ch, depth, visited) {
+      const recs = recipes[ch];
+      if (!recs || visited.has(ch) || depth > MAX_DEPTH) return null;
+      const cd  = G.allChars[ch] || {};
+      const rar = cd.rarity || 'N';
+      const newVis = new Set(visited); newVis.add(ch);
+
+      const wrap = document.createElement('div');
+      wrap.className = 'ng-sub-chain';
+
+      // 見出し行
+      const hdr = document.createElement('div');
+      hdr.className = 'ng-sub-hdr';
+      hdr.appendChild(makeNode(ch, 'sm'));
+      const txt = document.createElement('span');
+      txt.className = 'ng-sub-hdr-txt';
+      txt.textContent = 'の入手方法';
+      if (RAR_COL[rar]) txt.style.color = RAR_COL[rar];
+      hdr.appendChild(txt);
+      wrap.appendChild(hdr);
+
+      // レシピ行 → 再帰
+      for (const inputs of recs) {
+        wrap.appendChild(makeRecipeRow(inputs, 'sm'));
+        for (const inCh of inputs) {
+          if (!newVis.has(inCh) && recipes[inCh]) {
+            const sub = makeSubChain(inCh, depth + 1, newVis);
+            if (sub) wrap.appendChild(sub);
+          }
+        }
+      }
+      return wrap;
+    }
+
+    // ── トップレベル ──
     for (const outCh of sortedOuts) {
-      const outCd   = G.allChars[outCh] || {};
-      const outRar  = outCd.rarity || 'N';
-      const outElem = outCd.element || 'neutral';
-      const outOk   = !!G.unlocked[outCh];
+      const outCd  = G.allChars[outCh] || {};
+      const outRar = outCd.rarity || 'N';
+      const outOk  = !!G.unlocked[outCh];
 
-      const node = document.createElement('div');
-      node.className = 'insp-tree-node' + (outOk ? ' insp-unlocked' : '');
+      const chain = document.createElement('div');
+      chain.className = 'ng-chain' + (outOk ? ' ng-chain-ok' : '');
 
-      // 出力文字ヘッダー
-      const outRow = document.createElement('div');
-      outRow.className = 'insp-tree-output-row';
-      const outBox = document.createElement('div');
-      outBox.className = `insp-tree-out-box ${ELEM_CLASS[outElem] || 'elem-neutral'}${outOk ? ' insp-output-glow' : ''}`;
-      if (RAR_COL[outRar]) outBox.style.borderColor = RAR_COL[outRar];
-      outBox.textContent = outCh;
-      const outInfo = document.createElement('div');
-      outInfo.className = 'insp-tree-out-info';
-      const outName = document.createElement('div');
-      outName.className = 'insp-tree-out-name';
-      outName.textContent = outCh;
-      if (RAR_COL[outRar]) outName.style.color = RAR_COL[outRar];
-      const outRarLine = document.createElement('div');
-      outRarLine.className = 'insp-tree-out-rar';
-      outRarLine.textContent = `${RARITY_ICON[outRar] || outRar} ${outRar}  ${outOk ? '✓ 解禁済' : '未解禁'}`;
-      if (outOk && RAR_COL[outRar]) outRarLine.style.color = RAR_COL[outRar];
-      outInfo.appendChild(outName); outInfo.appendChild(outRarLine);
-      outRow.appendChild(outBox); outRow.appendChild(outInfo);
-      node.appendChild(outRow);
+      // 出力ノード（大）
+      chain.appendChild(makeNode(outCh, 'lg'));
 
-      // レシピ（再帰ツリー）
-      const recipesDiv = document.createElement('div');
-      recipesDiv.className = 'insp-tree-recipes';
-      const sub = makeRecipeRows(outCh, 0, new Set());
-      if (sub) recipesDiv.appendChild(sub);
-      node.appendChild(recipesDiv);
+      // 解禁ステータス
+      const st = document.createElement('div');
+      st.className = 'ng-status-line';
+      st.textContent = outOk ? '✓ 解禁済み' : '─ 未解禁 ─';
+      if (outOk && RAR_COL[outRar]) st.style.color = RAR_COL[outRar];
+      chain.appendChild(st);
 
-      content.appendChild(node);
+      // レシピエリア
+      if (recipes[outCh]) {
+        const arrow = document.createElement('div');
+        arrow.className = 'ng-arrow'; arrow.textContent = '▼';
+        chain.appendChild(arrow);
+
+        const area = document.createElement('div');
+        area.className = 'ng-recipe-area';
+        const topVis = new Set([outCh]);
+
+        for (const inputs of recipes[outCh]) {
+          const card = document.createElement('div');
+          card.className = 'ng-recipe-card';
+          card.appendChild(makeRecipeRow(inputs, 'md'));
+          for (const inCh of inputs) {
+            if (!topVis.has(inCh) && recipes[inCh]) {
+              const sub = makeSubChain(inCh, 1, topVis);
+              if (sub) card.appendChild(sub);
+            }
+          }
+          area.appendChild(card);
+        }
+        chain.appendChild(area);
+      }
+      content.appendChild(chain);
     }
   }
 

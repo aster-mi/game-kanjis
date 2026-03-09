@@ -1000,6 +1000,105 @@ body {
   font-size: 8px; color: var(--text-dim); white-space: nowrap;
 }
 
+
+/* =============================================
+   ノードグラフ (ひらめきマップ ツリービュー)
+   ============================================= */
+
+/* チェーン全体コンテナ */
+.ng-chain {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 3px; padding: 8px; margin-bottom: 8px;
+  border: 1px solid var(--border); border-radius: 12px;
+  background: var(--surface2);
+}
+.ng-chain.ng-chain-ok { border-color: var(--border2); }
+
+/* ── ノード共通 ── */
+.ng-node {
+  display: flex; flex-direction: column; align-items: center;
+  border-radius: 8px; border: 1.5px solid var(--border2);
+  background: rgba(255,255,255,0.03);
+  flex-shrink: 0; gap: 1px; transition: opacity .15s;
+}
+.ng-node.ng-lg { padding: 10px 20px; border-radius: 12px; border-width: 2px; }
+.ng-node.ng-md { padding: 5px 10px; }
+.ng-node.ng-sm { padding: 2px 6px; }
+
+.ng-node.ng-lg .ng-char { font-size: 34px; line-height: 1.15; }
+.ng-node.ng-md .ng-char { font-size: 20px; line-height: 1.15; }
+.ng-node.ng-sm .ng-char { font-size: 13px; line-height: 1.15; }
+
+.ng-rar-badge {
+  font-size: 8px; font-family: 'DotGothic16', monospace; opacity: .75;
+}
+
+/* レアリティ別ボーダー */
+.ng-rar-N   { border-color: var(--border2); }
+.ng-rar-R   { border-color: var(--rar-r);   }
+.ng-rar-SR  { border-color: var(--rar-sr);  }
+.ng-rar-SSR { border-color: var(--rar-ssr); }
+
+/* 解禁済みグロー */
+.ng-node.ng-ok.ng-rar-SSR { box-shadow: 0 0 14px rgba(255,112,64,.4); }
+.ng-node.ng-ok.ng-rar-SR  { box-shadow: 0 0 10px rgba(244,200,64,.3); }
+.ng-node.ng-ok.ng-rar-R   { box-shadow: 0 0 7px  rgba(68,187,238,.25); }
+
+/* 未解禁 */
+.ng-node.ng-locked { opacity: .45; filter: grayscale(30%); }
+
+/* 属性ごとの背景色（ノード） */
+.ng-node.elem-fire    { background: rgba(255,107, 53,.10); }
+.ng-node.elem-water   { background: rgba( 68,187,238,.10); }
+.ng-node.elem-thunder { background: rgba(244,208, 63,.10); }
+.ng-node.elem-ice     { background: rgba(160,220,255,.10); }
+.ng-node.elem-wind    { background: rgba(100,220,150,.10); }
+.ng-node.elem-earth   { background: rgba(180,140, 80,.10); }
+.ng-node.elem-light   { background: rgba(255,240,180,.10); }
+.ng-node.elem-dark    { background: rgba(180,100,255,.10); }
+.ng-node.elem-neutral { background: rgba(200,200,200,.06); }
+
+/* ステータス行 */
+.ng-status-line {
+  font-size: 9px; color: var(--text-dim); letter-spacing: .08em;
+}
+
+/* 矢印 */
+.ng-arrow { font-size: 9px; color: var(--text-dim); line-height: 1; }
+
+/* レシピエリア */
+.ng-recipe-area { display: flex; flex-direction: column; gap: 5px; width: 100%; }
+
+/* レシピカード */
+.ng-recipe-card {
+  border: 1px solid var(--border);
+  border-radius: 8px; padding: 7px 8px;
+  background: var(--surface3);
+}
+
+/* レシピ行 */
+.ng-recipe-row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+
+/* ＋記号 */
+.ng-plus { font-size: 13px; color: var(--text-dim); flex-shrink: 0; }
+
+/* サブチェーン（左ボーダーで階層を表現） */
+.ng-sub-chain {
+  margin-top: 6px;
+  padding: 4px 0 0 10px;
+  border-left: 2px solid rgba(255,255,255,0.10);
+}
+
+/* サブ見出し行 */
+.ng-sub-hdr {
+  display: flex; align-items: center; gap: 5px;
+  margin-bottom: 4px;
+}
+.ng-sub-hdr-txt {
+  font-size: 8px; color: var(--text-dim);
+  font-family: 'DotGothic16', monospace;
+}
+
 /* ===========================
    ロースター（なかま管理）
    =========================== */
